@@ -6,3 +6,6 @@ dist/
 # Editor / IDE
 .idea/
 .vscode/
+
+# Local project skills (Claude Code)
+.claude/skills/
