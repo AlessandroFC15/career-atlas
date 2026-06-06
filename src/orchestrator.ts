@@ -1,7 +1,8 @@
 import { injectedReadProfileHeader } from './profileReader';
 import { injectedScrapeExperience } from './parser';
 import { fetchAsDataUrl } from './images';
-import { saveSeed } from './storage';
+import { deriveGraph } from './graph';
+import { saveGraph, saveSeed } from './storage';
 import type { ExperienceEntry, ProfileHeader, Seed } from './types';
 
 // Error variants mirror m0-plan §11. The worker tab is kept open on every
@@ -186,6 +187,10 @@ export async function runSeed(hooks: SeedRunHooks = {}): Promise<Seed> {
       experiences: withLogos,
     };
     await saveSeed(seed);
+
+    // 7b. Materialize the graph from the fresh seed (m1-plan §9). Idempotent:
+    // re-seeding fully regenerates it.
+    await saveGraph(deriveGraph(seed));
 
     // 8. Close the worker tab (success only).
     if (workerTabId !== undefined) {

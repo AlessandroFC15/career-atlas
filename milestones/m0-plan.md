@@ -199,7 +199,7 @@ Worker tab is auto-closed **only** on success; on every error it stays open and 
 
 ## 13. Noted tensions and deferrals
 
-- **Two-stint companies → two list rows** (your choice) keeps M0 a 1:1 mirror of LinkedIn, but they share one `companyUrn`. When M4 dedups company nodes by URN, this needs reconciling (one node holding two intervals, vs. two nodes). Flagged now so it does not surface silently later.
+- **Two-stint companies → two list rows** (your choice) keeps M0 a 1:1 mirror of LinkedIn, but they share one `companyUrn`. When M4 dedups company nodes by URN, this needs reconciling (one node holding two intervals, vs. two nodes). Flagged now so it does not surface silently later. **Resolved in M1 (`m1-plan.md` §4):** the seed renders as a chronological chain, so two stints become **two chain nodes** at two points in time, never deduped. M4's dedup is reframed as a Level-2 (onward-company) concern only.
 - **Restore-on-reopen UX** is M1; M0 persists and does a basic read-on-mount only.
 - **Parser brittleness vs. obfuscated DOM** (surfaced 2026-06-05): the live parser leans on `font-weight: 600` to find heading lines because LinkedIn's class names are now per-deploy hashes. This is more robust than class selectors but still breaks if LinkedIn restyles headings to a different weight. Mitigation deferred: a text-pattern fallback (e.g. infer titles by position relative to date lines) if the bold signal ever proves unreliable. The fixture-based test will catch a regression fast.
 - **Stop / pacing / challenge handling** are M5; M0's two own-profile loads are low-volume and need none of it.

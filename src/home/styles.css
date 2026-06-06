@@ -1,11 +1,24 @@
 :root {
-  --bg: #f3f2ef;
-  --card: #ffffff;
-  --border: #e0dfdc;
-  --text: #1d2226;
-  --muted: #5e6670;
-  --accent: #0a66c2;
-  --accent-dark: #004182;
+  /* Cosmic theme: a career as a star chart (deep space, glowing nodes). */
+  --bg: #05070f; /* deep space */
+  --bg-core: #0d1430; /* lighter gradient core, "looking into" the galaxy */
+  --card: rgba(20, 28, 52, 0.66); /* glassy floating panel */
+  --card-solid: #131a33;
+  --border: rgba(150, 165, 220, 0.16);
+  --text: #e9edfb;
+  --muted: #8a93b4;
+  --accent: #7c8cff; /* starlight indigo */
+  --accent-dark: #5a6bff;
+  --accent-soft: rgba(124, 140, 255, 0.16); /* faint accent wash (hovers, fallbacks) */
+  --on-accent: #fff; /* text/icon colour atop an accent fill */
+  --glow: rgba(124, 140, 255, 0.45);
+  --edge: rgba(168, 182, 235, 0.55);
+
+  /* Glass panels: bars, headers and floating chrome share one recipe so the
+     starfield reads through them consistently. */
+  --glass-bg: rgba(8, 12, 26, 0.72);
+  --glass-blur: 8px;
+  --card-hover: #1c2546; /* hover fill for solid dark controls */
 }
 
 * { box-sizing: border-box; }
@@ -17,17 +30,96 @@ html, body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
-.app { min-height: 100vh; }
-
-.app__bar {
-  background: var(--card);
-  border-bottom: 1px solid var(--border);
-  padding: 12px 24px;
+/* --- Cosmos: the fixed deep-space backdrop (see App.tsx <Cosmos/>). Sits
+   behind everything; all surfaces above are transparent so it shows through. */
+.cosmos {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(1100px 700px at 72% 12%, var(--bg-core), transparent 70%),
+    var(--bg);
+}
+.cosmos__nebula,
+.cosmos__stars {
+  position: absolute;
+  inset: 0;
+}
+/* A faint two-tone nebula gives the void depth and a little colour. */
+.cosmos__nebula {
+  background:
+    radial-gradient(38% 50% at 30% 68%, rgba(86, 70, 165, 0.18), transparent 70%),
+    radial-gradient(42% 46% at 78% 34%, rgba(40, 96, 140, 0.16), transparent 72%);
+  filter: blur(8px);
+}
+/* Three tiled star layers. The base is static for stability; a and b twinkle
+   out of phase so the field shimmers softly without any single star strobing. */
+.cosmos__stars--base {
+  background-image:
+    radial-gradient(1px 1px at 40px 60px, rgba(255, 255, 255, 0.85), transparent),
+    radial-gradient(1px 1px at 160px 120px, rgba(210, 222, 255, 0.7), transparent),
+    radial-gradient(1px 1px at 280px 220px, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(1px 1px at 90px 300px, rgba(255, 255, 255, 0.55), transparent),
+    radial-gradient(1px 1px at 350px 80px, rgba(220, 230, 255, 0.6), transparent);
+  background-repeat: repeat;
+  background-size: 400px 400px;
+}
+.cosmos__stars--a {
+  background-image:
+    radial-gradient(1.6px 1.6px at 120px 200px, rgba(255, 255, 255, 0.95), transparent),
+    radial-gradient(1.3px 1.3px at 320px 60px, rgba(200, 214, 255, 0.85), transparent),
+    radial-gradient(1.2px 1.2px at 60px 340px, rgba(255, 255, 255, 0.8), transparent);
+  background-repeat: repeat;
+  background-size: 460px 460px;
+  animation: twinkle 6.5s ease-in-out infinite;
+}
+.cosmos__stars--b {
+  background-image:
+    radial-gradient(2px 2px at 240px 300px, rgba(186, 202, 255, 0.95), transparent),
+    radial-gradient(1.4px 1.4px at 420px 160px, rgba(255, 255, 255, 0.85), transparent),
+    radial-gradient(1.3px 1.3px at 30px 120px, rgba(255, 245, 230, 0.8), transparent);
+  background-repeat: repeat;
+  background-size: 540px 540px;
+  animation: twinkle 9.5s ease-in-out infinite reverse;
+  animation-delay: -2s;
+}
+@keyframes twinkle {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cosmos__stars--a,
+  .cosmos__stars--b { animation: none; }
 }
 
-.app__brand { font-weight: 700; font-size: 16px; color: var(--accent); }
+.app {
+  position: relative; /* stack above the fixed .cosmos backdrop */
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.app__bar {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+  flex: 0 0 auto;
+}
+
+.app__brand {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text);
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 14px var(--glow);
+}
 
 .app__main {
+  flex: 1 1 auto;
+  width: 100%;
   max-width: 720px;
   margin: 0 auto;
   padding: 32px 24px 64px;
@@ -53,8 +145,12 @@ html, body {
   cursor: pointer;
   border: 1px solid transparent;
 }
-.btn--primary { background: var(--accent); color: #fff; }
-.btn--primary:hover { background: var(--accent-dark); }
+.btn--primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: 0 0 18px var(--glow);
+}
+.btn--primary:hover { background: var(--accent-dark); box-shadow: 0 0 24px var(--glow); }
 .btn--ghost {
   background: transparent;
   color: var(--accent);
@@ -62,7 +158,7 @@ html, body {
   padding: 6px 16px;
   font-size: 14px;
 }
-.btn--ghost:hover { background: rgba(10, 102, 194, 0.08); }
+.btn--ghost:hover { background: var(--accent-soft); }
 
 /* Spinner */
 .spinner {
@@ -78,6 +174,7 @@ html, body {
 /* Error */
 .error-card {
   background: var(--card);
+  backdrop-filter: blur(10px);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 24px;
@@ -85,19 +182,126 @@ html, body {
 }
 .error-card__title { font-weight: 700; font-size: 18px; margin: 0 0 8px; }
 
-/* Profile header */
-.profile {
+/* Seeded view: header bar above a full-tab graph canvas (m1-plan §8) */
+.career-page {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* let the graph child shrink/scroll inside flex */
+}
+
+.career-header {
   display: flex;
   align-items: center;
-  gap: 16px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 16px;
+  gap: 14px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+  flex: 0 0 auto;
 }
-.profile__meta { flex: 1; }
-.profile__name { font-size: 22px; margin: 0; }
+.career-header__meta { flex: 1; }
+.career-header__name { font-size: 18px; margin: 0; }
+
+.career-graph {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Let the Cosmos backdrop show through React Flow's pane. */
+.career-graph .react-flow,
+.career-graph .react-flow__pane { background: transparent; }
+
+/* Zoom controls restyled for the dark theme. */
+.career-graph .react-flow__controls {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.career-graph .react-flow__controls-button {
+  background: var(--card-solid);
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  fill: var(--text);
+}
+.career-graph .react-flow__controls-button:hover { background: var(--card-hover); }
+.career-graph .react-flow__controls-button svg { fill: var(--text); }
+
+/* Custom React Flow company node (Level 0, dormant — no behavior until M2):
+   a round, 3D glowing "star" with the company name below it. */
+.career-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+/* Edge handles attach to the orb rim; never show the connection dots. */
+.career-node .react-flow__handle {
+  width: 1px;
+  height: 1px;
+  min-width: 0;
+  min-height: 0;
+  background: transparent;
+  border: none;
+  opacity: 0;
+}
+
+/* The "star" is the company logo itself: a real, round coin floating in space.
+   No glass-marble gradients. A corona blooms in the logo's own dominant colour
+   (--star-color, sampled in CareerGraph.tsx), and the coin drifts with a barely
+   perceptible, staggered float so it feels suspended and alive. */
+.career-star {
+  position: relative;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #fff; /* backing for transparent/letterboxed logos */
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.35), /* thin bright rim */
+    0 8px 22px rgba(0, 0, 0, 0.5), /* grounding shadow */
+    0 0 18px 1px color-mix(in srgb, var(--star-color) 65%, transparent), /* near corona */
+    0 0 46px 6px color-mix(in srgb, var(--star-color) 34%, transparent); /* far corona */
+  animation: starfloat 7s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -1.1s);
+  will-change: transform;
+}
+/* The logo fills the coin. */
+.career-star .logo,
+.career-star .logo--fallback {
+  border-radius: 50%;
+  object-fit: cover;
+}
+/* A barely-there drift: 3px is enough to feel suspended, not bouncing. */
+@keyframes starfloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .career-star { animation: none; }
+}
+
+/* Label: company name is the hero; tenure is a faint, secondary footnote. */
+.career-node__label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  max-width: 150px;
+  text-align: center;
+}
+.career-node__name {
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1.25;
+  color: var(--text);
+}
+.career-node__tenure {
+  font-size: 10.5px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  opacity: 0.75;
+}
 
 .avatar { border-radius: 50%; object-fit: cover; }
 .avatar--fallback {
@@ -105,35 +309,21 @@ html, body {
   align-items: center;
   justify-content: center;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font-weight: 700;
   font-size: 24px;
 }
 
-/* Company list */
-.company-list { list-style: none; margin: 0; padding: 0; }
-.company-row {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 14px 16px;
-  margin-bottom: 8px;
-}
-.company-row__meta { display: flex; flex-direction: column; gap: 2px; }
-.company-row__name { font-weight: 600; font-size: 15px; }
-.company-row__roles { color: var(--muted); font-size: 13px; }
-
+/* Real logos keep a light tile so they read as little glowing badges. */
 .logo { border-radius: 8px; object-fit: contain; background: #fff; }
 .logo--fallback {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #e8e8e8;
-  color: var(--muted);
+  background: var(--accent-soft);
+  color: var(--accent);
   font-weight: 700;
   font-size: 20px;
   border-radius: 8px;
+  border: 1px solid var(--border);
 }

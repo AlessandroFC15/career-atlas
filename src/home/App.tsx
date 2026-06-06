@@ -1,29 +1,35 @@
-import { useEffect, useMemo, useState } from 'react';
-import { loadSeed } from '../storage';
+import { useEffect, useState } from 'react';
+import { loadGraph, loadSeed, saveGraph } from '../storage';
+import { deriveGraph } from '../graph';
 import { runSeed, SeedError } from '../orchestrator';
-import { formatTenure } from '../format';
-import type { DateParts, Seed } from '../types';
-import { Avatar, CompanyLogo, Spinner } from './components';
+import type { CareerGraph as CareerGraphModel, Seed } from '../types';
+import { Avatar, Spinner } from './components';
+import { CareerGraph } from './CareerGraph';
 
 type View =
   | { kind: 'loading' }
   | { kind: 'empty' }
   | { kind: 'seeding'; message: string }
-  | { kind: 'seeded'; seed: Seed }
+  | { kind: 'seeded'; seed: Seed; graph: CareerGraphModel }
   | { kind: 'error'; code: string; message: string };
-
-/** Sort key: oldest start first (chronological, m0-plan §10). */
-function startValue(d: DateParts): number {
-  return d.year * 12 + (d.month ?? 0);
-}
 
 export function App() {
   const [view, setView] = useState<View>({ kind: 'loading' });
 
-  // Read-on-mount: render any persisted seed (§9).
+  // Read-on-mount: render the materialized graph from the store, never by
+  // re-reading LinkedIn (m1-plan §9). An M0-era seed (no graph, or a stale one)
+  // migrates silently here: derive once, persist, then render.
   useEffect(() => {
-    loadSeed().then((seed) => {
-      setView(seed ? { kind: 'seeded', seed } : { kind: 'empty' });
+    Promise.all([loadSeed(), loadGraph()]).then(async ([seed, graph]) => {
+      if (!seed) {
+        setView({ kind: 'empty' });
+        return;
+      }
+      if (!graph || graph.derivedFrom !== seed.seededAt) {
+        graph = deriveGraph(seed);
+        await saveGraph(graph);
+      }
+      setView({ kind: 'seeded', seed, graph });
     });
   }, []);
 
@@ -33,7 +39,9 @@ export function App() {
       const seed = await runSeed({
         onProgress: (message) => setView({ kind: 'seeding', message }),
       });
-      setView({ kind: 'seeded', seed });
+      // runSeed already persisted the graph; derive the same view model here
+      // (deriveGraph is pure) rather than a second storage round-trip.
+      setView({ kind: 'seeded', seed, graph: deriveGraph(seed) });
     } catch (err) {
       const e = err instanceof SeedError ? err : null;
       setView({
@@ -44,22 +52,54 @@ export function App() {
     }
   }
 
+  // Seeded is a full-bleed graph surface; other states sit in the narrow main.
+  if (view.kind === 'seeded') {
+    return (
+      <div className="app">
+        <Cosmos />
+        <Brand />
+        <SeededState seed={view.seed} graph={view.graph} onReseed={handleSeed} />
+      </div>
+    );
+  }
+
   return (
     <div className="app">
-      <header className="app__bar">
-        <span className="app__brand">Career Atlas</span>
-      </header>
+      <Cosmos />
+      <Brand />
       <main className="app__main">
         {view.kind === 'loading' && <Spinner />}
         {view.kind === 'empty' && <EmptyState onSeed={handleSeed} />}
         {view.kind === 'seeding' && <SeedingState message={view.message} />}
-        {view.kind === 'seeded' && (
-          <SeededState seed={view.seed} onReseed={handleSeed} />
-        )}
         {view.kind === 'error' && (
           <ErrorState code={view.code} message={view.message} onRetry={handleSeed} />
         )}
       </main>
+    </div>
+  );
+}
+
+function Brand() {
+  return (
+    <header className="app__bar">
+      <span className="app__brand">Career Atlas</span>
+    </header>
+  );
+}
+
+/**
+ * The deep-space backdrop: a fixed, full-viewport star field that shows through
+ * every (transparent) surface above it. A static dense base for stability, two
+ * star layers that twinkle out of phase to give the void some life, and a faint
+ * nebula for depth and colour. Purely decorative.
+ */
+function Cosmos() {
+  return (
+    <div className="cosmos" aria-hidden="true">
+      <div className="cosmos__nebula" />
+      <div className="cosmos__stars cosmos__stars--base" />
+      <div className="cosmos__stars cosmos__stars--a" />
+      <div className="cosmos__stars cosmos__stars--b" />
     </div>
   );
 }
@@ -108,43 +148,32 @@ function ErrorState({
   );
 }
 
-function SeededState({ seed, onReseed }: { seed: Seed; onReseed: () => void }) {
-  const ordered = useMemo(
-    () => [...seed.experiences].sort((a, b) => startValue(a.start) - startValue(b.start)),
-    [seed.experiences],
-  );
-
+/** Header bar (avatar + name + company count + Re-seed) above the graph (§8). */
+function SeededState({
+  seed,
+  graph,
+  onReseed,
+}: {
+  seed: Seed;
+  graph: CareerGraphModel;
+  onReseed: () => void;
+}) {
+  const count = graph.nodes.length;
   return (
-    <div className="seeded">
-      <section className="profile">
-        <Avatar dataUrl={seed.avatarDataUrl} name={seed.name} />
-        <div className="profile__meta">
-          <h1 className="profile__name">{seed.name}</h1>
+    <div className="career-page">
+      <section className="career-header">
+        <Avatar dataUrl={seed.avatarDataUrl} name={seed.name} size={48} />
+        <div className="career-header__meta">
+          <h1 className="career-header__name">{seed.name}</h1>
           <p className="muted">
-            {ordered.length} {ordered.length === 1 ? 'company' : 'companies'}
+            {count} {count === 1 ? 'company' : 'companies'}
           </p>
         </div>
         <button className="btn btn--ghost" onClick={onReseed}>
           Re-seed
         </button>
       </section>
-
-      <ul className="company-list">
-        {ordered.map((entry, i) => (
-          <li className="company-row" key={`${entry.companyUrn ?? entry.companyName}-${i}`}>
-            <CompanyLogo dataUrl={entry.logoDataUrl} name={entry.companyName} />
-            <div className="company-row__meta">
-              <span className="company-row__name">{entry.companyName}</span>
-              <span className="muted">{formatTenure(entry)}</span>
-              {entry.roles.length > 1 && (
-                <span className="company-row__roles">
-                  {entry.roles.map((r) => r.title).join(' · ')}
-                </span>
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
+      <CareerGraph graph={graph} />
     </div>
   );
 }

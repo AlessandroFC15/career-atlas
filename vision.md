@@ -15,6 +15,8 @@ The graph is **two levels deep, rooted in your own career**. It does not unfold 
 
 There is no person-expansion action and no outward unfolding. The graph answers exactly one question: for each place I worked, who did I overlap with, and where did each of them go next? See `journey.md` for the full step-by-step behavior.
 
+**Visual arrangement (decided in M1, supersedes earlier "rooted, you at the center" framing).** The seed renders as a horizontal **career chain**: your companies in chronological order, each linked to the next (`first → next → …`), not as a fan radiating from a central "you" node. You appear in a **header bar**, not as a graph node. A company you worked at in two separate stints appears as **two chain nodes** at its two points in time, rather than one deduped node (see the deduplication note in `journey.md`). The two-level rooted model above is unchanged; this only fixes how Level 0 is laid out.
+
 The intended feel is still **exploration, not a one-shot dump**: the graph grows where the user deliberately clicks, one company at a time, rather than materializing all at once.
 
 ---

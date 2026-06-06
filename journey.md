@@ -111,7 +111,8 @@ It never auto-retries through a challenge. Continuing automated traffic right af
 ### Deduplication
 Same entity, one node, computed deterministically:
 
-- **Company key:** LinkedIn's company entity ID (URN) where present, falling back to a normalized name (lowercased, with suffixes like Inc/Ltd/GmbH and punctuation stripped). So "Acme Inc." and "acme" collapse to one node.
+- **Company key:** LinkedIn's company entity ID (URN) where present, falling back to a normalized name (lowercased, with suffixes like Inc/Ltd/GmbH and punctuation stripped). So "Acme Inc." and "acme" collapse to one node. This applies to **onward (Level 2) companies**, where convergence ("two colleagues both ended up at Z") is the point.
+- **Seed-chain exception (decided in M1).** Your **own** companies are **not** deduped: a company you worked at in two separate stints renders as **two chain nodes** at its two points in time. Deduping them would fold the chronological timeline back on itself. The company-key above is therefore a Level 2 concern, not a seed concern.
 - **Person key:** profile URL / URN.
 - **No Claude in v1.** The fuzzy judgment layer stays optional and deferred (consistent with `vision.md` §4). It can be added later only if deterministic matching proves insufficient.
 

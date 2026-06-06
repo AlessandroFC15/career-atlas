@@ -16,7 +16,7 @@ Install the extension, click its icon, the home tab opens. Click **"Seed my grap
 
 ## M1 — Plot the seed
 
-Same data, now rendered as an actual graph: you at the center, your companies as **Level 0 nodes**, dormant. Reopening the extension shows the same graph from local storage instead of re-reading.
+Same data, now rendered as an actual graph: your companies as a **horizontal career chain** (chronological, each linked to the next), as dormant **Level 0 nodes**. You appear in a header bar, not as a graph node. Reopening the extension shows the same graph from local storage instead of re-reading.
 
 **Proves:** the graph rendering/layout layer and persistence.
 
