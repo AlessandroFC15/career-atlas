@@ -19,6 +19,8 @@ There is no person-expansion action and no outward unfolding. The graph answers 
 
 The intended feel is still **exploration, not a one-shot dump**: the graph grows where the user deliberately clicks, one company at a time, rather than materializing all at once.
 
+**Navigation (decided in M2, supersedes the "one graph, all levels visible" framing).** The two levels are not all shown on one canvas. The product has two views: an **atlas** (the career chain above, Level 0) and, per company, a **galaxy** you **drill into** by clicking a company star. Inside a galaxy you see only that one company as the major star, its overlapping people (Level 1) below it, and later where those people went (Level 2). A back affordance returns you to the atlas. You explore one company's subtree at a time. One consequence, accepted: cross-company convergence (a colleague from company A and one from company B both ending up at the same place) is not visible, since you never see two companies' people at once. The two-level rooted model is otherwise unchanged; this fixes how levels 1 and 2 are presented. See `m2-plan.md`.
+
 ---
 
 ## 2. Guiding Constraint: Human-Shaped Traffic
@@ -49,7 +51,7 @@ Seeds the graph, and read the same human-shaped way as everything else: from you
 There is no data export or manual file-upload step. This pull uses the identical parsing path as #2 and #3, just pointed at your own profile.
 
 **Pull #2 — first-degree connections who worked at a given company.**
-No official API or export provides this. It is only available by reading a logged-in LinkedIn page (the company's People view, filtered to connections). Feasibility was confirmed against a live page: the data parses cleanly into structured records (name, headline, location, profile link).
+No official API or export provides this. It is only available by reading a logged-in LinkedIn page. **Mechanism (decided in M2, supersedes the "company People view" framing):** a single **first-degree people search** keyed on the company name (`/search/results/people/?keywords=<company>&network=["F"]`), rather than the company People tab (which would need a separate current-company and past-company fetch). One query, leaning on LinkedIn's relevance ranking. Confirmed against a live page: results filter cleanly to first-degree and parse into structured records (name, headline, location, profile link, photo). The keyword can over-match (people who never actually worked there), which is **fine because the overlap check in Pull #3 prunes exactly those**.
 
 **Pull #3 — a person's full dated work history.**
 Also has no API. Only available on the individual's profile page. Feasibility confirmed: the experience section parses cleanly, including the start/end dates needed for overlap matching.

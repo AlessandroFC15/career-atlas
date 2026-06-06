@@ -330,6 +330,21 @@ html, body {
   .career-graph[data-intro] .career-beam { animation: none; }
 }
 
+/* Sibling stars dissolve during a drill-in (the "entering" beat) so they don't
+   pop out when the galaxy swaps in. The focused star keeps full opacity. */
+.career-node--faded .career-node__pop {
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+.career-edge--faded {
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .career-node--faded .career-node__pop,
+  .career-edge--faded { transition: none; }
+}
+
 /* Label: company name is the hero; tenure is a faint, secondary footnote. */
 .career-node__label {
   display: flex;
@@ -339,6 +354,9 @@ html, body {
   max-width: 150px;
   text-align: center;
 }
+/* The focused company in a galaxy shows its full name on one line (no clamp). */
+.career-node--focus .career-node__label { max-width: none; }
+.career-node--focus .career-node__name { white-space: nowrap; }
 .career-node__name {
   font-weight: 600;
   font-size: 15px;
@@ -351,6 +369,175 @@ html, body {
   letter-spacing: 0.04em;
   opacity: 0.75;
 }
+
+/* === M2: galaxy (drill-in) view ============================================
+   A person is a smaller star than a company: photo as the coin, name + headline
+   below. People fade and rise in as they are parsed (staggered by --i). */
+.person-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.person-node .react-flow__handle {
+  width: 1px;
+  height: 1px;
+  min-width: 0;
+  min-height: 0;
+  background: transparent;
+  border: none;
+  opacity: 0;
+}
+.person-node__pop {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: person-appear 600ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: calc(var(--i) * 90ms);
+}
+/* Hovered person rises above neighbours so its name chip reads cleanly. */
+.person-node:hover { z-index: 10; }
+@keyframes person-appear {
+  0% { opacity: 0; transform: translateY(10px) scale(0.85); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .person-node__pop { animation: none; }
+}
+/* Raw (unverified) person star: a soft neutral corona, dimmer than a company.
+   M3 will give verified vs pruned their own treatment. */
+.person-star {
+  position: relative;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.25),
+    0 6px 16px rgba(0, 0, 0, 0.45),
+    0 0 16px 1px rgba(140, 158, 235, 0.28);
+}
+.person-star .avatar,
+.person-star .avatar--fallback { border-radius: 50%; }
+/* Name: hidden by default, floats in below the orb on hover as a glass chip. */
+.person-node__name {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(-3px);
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--text);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 3px 10px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 130ms ease, transform 130ms ease;
+}
+.person-node:hover .person-node__name {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .person-node__name { transition: opacity 130ms ease; }
+}
+
+/* Back-to-atlas control, top-left over the galaxy canvas. */
+.galaxy-back {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 20px;
+  padding: 7px 16px;
+  cursor: pointer;
+}
+.galaxy-back:hover { background: var(--card-hover); }
+
+/* Galaxy title: a non-interactive canvas node sitting between the focused star
+   and the people row. Its node origin is the row center; translateX(-50%)
+   centers it, so it can grow to its one-line text. Clicks pass through; fades
+   in with people (opacity only, to preserve the centering transform). */
+.galaxy-title {
+  white-space: nowrap;
+  text-align: center;
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: galaxy-title-in 600ms ease backwards;
+}
+@keyframes galaxy-title-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+/* Invisible bounds-extender below the row (reserves room for M4 trajectories). */
+.galaxy-spacer {
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+.galaxy-title__head {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.01em;
+  text-shadow: 0 0 16px var(--glow);
+}
+.galaxy-title__sub {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+@media (prefers-reduced-motion: reduce) {
+  .galaxy-title { animation: none; }
+}
+
+/* Load-more placeholder, bottom-center over the galaxy. Disabled until M6. */
+.galaxy-loadmore {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 20px;
+  padding: 8px 20px;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Loading / empty / error overlay, centered over the focused star's galaxy. */
+.galaxy-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  pointer-events: none; /* let pan/zoom through; children re-enable as needed */
+  padding-top: 120px; /* sit below the focused star, not on top of it */
+}
+.galaxy-overlay .error-card { pointer-events: auto; }
 
 .avatar { border-radius: 50%; object-fit: cover; }
 .avatar--fallback {

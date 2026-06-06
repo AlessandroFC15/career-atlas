@@ -1,4 +1,4 @@
-import type { CareerGraph, Seed } from './types';
+import type { CareerGraph, CompanyExpansion, Seed } from './types';
 
 // Single source of truth in M0 (m0-plan §9). One key, overwritten on re-seed.
 const SEED_KEY = 'seed';
@@ -21,4 +21,23 @@ export async function loadGraph(): Promise<CareerGraph | null> {
 
 export async function saveGraph(graph: CareerGraph): Promise<void> {
   await chrome.storage.local.set({ [GRAPH_KEY]: graph });
+}
+
+/**
+ * Merge one company's expansion into the stored graph (M2, m2-plan §10). Reads
+ * the current graph, sets `expansions[companyId]`, and writes it back. The atlas
+ * nodes/edges are untouched. Returns the updated graph (or null if none stored).
+ */
+export async function saveExpansion(
+  companyId: string,
+  expansion: CompanyExpansion,
+): Promise<CareerGraph | null> {
+  const graph = await loadGraph();
+  if (!graph) return null;
+  const next: CareerGraph = {
+    ...graph,
+    expansions: { ...(graph.expansions ?? {}), [companyId]: expansion },
+  };
+  await saveGraph(next);
+  return next;
 }

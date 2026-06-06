@@ -69,8 +69,49 @@ export interface GraphEdge {
   kind: 'next'; // career-progression edge
 }
 
+// --- M2: company expansion into people (m2-plan §4). Companies stay in
+// nodes[]/edges[] (the atlas); a company's first page of people lives in a
+// separate `expansions` map so the drill-in galaxy renders one subtree at a
+// time and re-entering never re-fetches. ---
+
+/** What `injectedScrapePeople` returns per first-degree search result (URLs
+ *  only; photo bytes are fetched later in the home page, like company logos). */
+export interface PersonRecord {
+  vanity: string; // the /in/<vanity> key (person identity)
+  profileUrl: string; // canonical https://www.linkedin.com/in/<vanity>/
+  name: string;
+  headline?: string;
+  location?: string;
+  photoUrl?: string; // original media.licdn.com URL
+}
+
+/** One first-degree connection surfaced under a company (a raw Level 1 node). */
+export interface PersonNode {
+  id: string; // `${companyId}:${vanity}`, scoped per company (boomerang-safe)
+  kind: 'person';
+  level: 1;
+  parentId: string; // the company GraphNode id this person hangs off
+  vanity: string;
+  profileUrl: string;
+  name: string;
+  headline?: string;
+  location?: string;
+  photoUrl?: string;
+  photoDataUrl?: string; // cached base64, what the UI renders
+  status: 'raw'; // M3 adds 'verified' | 'pruned' (flips in place)
+  order: number; // column position within the galaxy
+}
+
+/** A company's captured first page of people (one search load). */
+export interface CompanyExpansion {
+  people: PersonNode[];
+  keyword: string; // the search keyword used (the company name)
+  fetchedAt: number; // epoch ms
+}
+
 export interface CareerGraph {
   nodes: GraphNode[];
   edges: GraphEdge[];
   derivedFrom: number; // seed.seededAt this graph was built from (staleness check)
+  expansions?: Record<string, CompanyExpansion>; // keyed by company node id (M2)
 }

@@ -1,9 +1,16 @@
 import { injectedReadProfileHeader } from './profileReader';
 import { injectedScrapeExperience } from './parser';
+import { injectedScrapePeople } from './peopleParser';
 import { fetchAsDataUrl } from './images';
-import { deriveGraph } from './graph';
-import { saveGraph, saveSeed } from './storage';
-import type { ExperienceEntry, ProfileHeader, Seed } from './types';
+import { deriveGraph, personNodesFromRecords } from './graph';
+import { saveExpansion, saveGraph, saveSeed } from './storage';
+import type {
+  CompanyExpansion,
+  ExperienceEntry,
+  GraphNode,
+  ProfileHeader,
+  Seed,
+} from './types';
 
 // Error variants mirror m0-plan §11. The worker tab is kept open on every
 // error (so the user sees the real page) and closed only on success.
@@ -208,6 +215,128 @@ export async function runSeed(hooks: SeedRunHooks = {}): Promise<Seed> {
       throw err;
     }
     throw new SeedError(
+      'GENERIC',
+      err instanceof Error ? err.message : 'Something went wrong.',
+      workerTabId,
+    );
+  }
+}
+
+// === M2: expand one company into its first page of people (m2-plan §8) ======
+
+/** Mirrors SeedErrorCode. EMPTY = no first-degree connections found. */
+export type ExpandErrorCode =
+  | 'LOGGED_OUT'
+  | 'PARSE_NOT_READY'
+  | 'EMPTY'
+  | 'GENERIC';
+
+export class ExpandError extends Error {
+  constructor(
+    public code: ExpandErrorCode,
+    message: string,
+    public workerTabId?: number,
+  ) {
+    super(message);
+    this.name = 'ExpandError';
+  }
+}
+
+/** First-degree people search for a company name (m2-plan §5a). */
+function peopleSearchUrl(keyword: string): string {
+  const k = encodeURIComponent(keyword);
+  return `https://www.linkedin.com/search/results/people/?keywords=${k}&network=%5B%22F%22%5D&origin=FACETED_SEARCH`;
+}
+
+export interface ExpandRunHooks {
+  onProgress?: (message: string) => void;
+}
+
+/**
+ * Expand a single company node: open the worker tab on its first-degree people
+ * search (background, like seed), parse the first page, cache photos, and store
+ * the result under `graph.expansions[company.id]`. One page load per click. The
+ * worker tab is closed on success, surfaced on any error (a captcha lands as
+ * PARSE_NOT_READY; halt-on-challenge detection is deferred to M5).
+ */
+export async function runExpandCompany(
+  company: GraphNode,
+  hooks: ExpandRunHooks = {},
+): Promise<CompanyExpansion> {
+  const progress = hooks.onProgress ?? (() => {});
+  const keyword = company.name;
+  let workerTabId: number | undefined;
+
+  try {
+    progress(`Searching your connections at ${keyword}…`);
+    const tab = await chrome.tabs.create({
+      url: peopleSearchUrl(keyword),
+      active: false,
+    });
+    workerTabId = tab.id;
+    if (workerTabId === undefined) {
+      throw new ExpandError('GENERIC', 'Could not open a worker tab');
+    }
+
+    // Resolve on first complete load (no urlIncludes), then detect logged-out,
+    // so a redirect to the auth wall is reported as LOGGED_OUT, not a timeout.
+    const loaded = await waitForLoad(workerTabId);
+    if (isLoggedOutUrl(loaded.url)) {
+      throw new ExpandError(
+        'LOGGED_OUT',
+        'Log in to LinkedIn, then try expanding again.',
+        workerTabId,
+      );
+    }
+
+    progress('Reading people you know…');
+    const records = await injectFunc(workerTabId, injectedScrapePeople, [15000]);
+    if (!Array.isArray(records)) {
+      throw new ExpandError(
+        'PARSE_NOT_READY',
+        'The people results did not load in time. Try again.',
+        workerTabId,
+      );
+    }
+    if (records.length === 0) {
+      throw new ExpandError(
+        'EMPTY',
+        `No first-degree connections found at ${keyword}.`,
+        workerTabId,
+      );
+    }
+
+    // Build raw person nodes, then fetch each photo as a data URL (in the home
+    // page, where licdn fetches are CORS-allowed) and attach it in place.
+    progress('Caching photos…');
+    const people = personNodesFromRecords(company.id, records);
+    await Promise.all(
+      people.map(async (p) => {
+        p.photoDataUrl = await fetchAsDataUrl(p.photoUrl);
+      }),
+    );
+
+    const expansion: CompanyExpansion = {
+      people,
+      keyword,
+      fetchedAt: Date.now(),
+    };
+    await saveExpansion(company.id, expansion);
+
+    if (workerTabId !== undefined) {
+      chrome.tabs.remove(workerTabId).catch(() => {});
+    }
+    return expansion;
+  } catch (err) {
+    console.error('[career-atlas] expand failed:', err);
+    if (err instanceof ExpandError) {
+      err.workerTabId ??= workerTabId;
+      if (err.workerTabId !== undefined) {
+        chrome.tabs.update(err.workerTabId, { active: true }).catch(() => {});
+      }
+      throw err;
+    }
+    throw new ExpandError(
       'GENERIC',
       err instanceof Error ? err.message : 'Something went wrong.',
       workerTabId,

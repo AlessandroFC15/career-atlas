@@ -28,9 +28,9 @@ Same data, now rendered as an actual graph: your companies as a **horizontal car
 
 ## M2 — Expand a company into its people ⬅ next
 
-Click a Level 0 node. The worker tab loads that company's People view filtered to your connections, captures the **first page**, and plots those people as raw **Level 1 nodes** hanging off the company. Not overlap-verified yet, just the initial list.
+*Detailed plan in `m2-plan.md`.* Click a Level 0 node and **drill into that company's galaxy** (the chain fades, that company becomes the major star). The worker tab loads a **first-degree people search keyed on the company name** (`network=["F"]`, one query instead of a current/past company facet), captures the **first page** (~10), and plots those people as raw **Level 1 nodes** in a column below the company. Not overlap-verified yet, just the initial list. A back affordance (and Esc) returns to the atlas.
 
-**Proves:** the People-page parser and the one-page-per-click expansion model.
+**Proves:** the people-search parser, the drill-in galaxy navigation, and the one-page-per-click expansion model (plus the graph store now holding non-derivable expansion data).
 
 ---
 

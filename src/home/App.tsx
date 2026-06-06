@@ -1,10 +1,15 @@
 import { useEffect, useState } from 'react';
 import { loadGraph, loadSeed, saveGraph } from '../storage';
 import { deriveGraph } from '../graph';
-import { runSeed, SeedError } from '../orchestrator';
+import {
+  ExpandError,
+  runExpandCompany,
+  runSeed,
+  SeedError,
+} from '../orchestrator';
 import type { CareerGraph as CareerGraphModel, Seed } from '../types';
 import { Avatar, Spinner } from './components';
-import { CareerGraph } from './CareerGraph';
+import { CareerGraph, type GraphView } from './CareerGraph';
 
 type View =
   | { kind: 'loading' }
@@ -19,6 +24,9 @@ export function App() {
   // ignition plays as a reward for that action. The load-on-mount path leaves
   // this false, so reopening an existing graph renders instantly.
   const [animateIntro, setAnimateIntro] = useState(false);
+  // Navigation within the seeded view: the atlas chain, or a drilled-in galaxy
+  // (m2-plan §3). Transient: never persisted, always starts at the atlas.
+  const [nav, setNav] = useState<GraphView>({ mode: 'atlas' });
 
   // Read-on-mount: render the materialized graph from the store, never by
   // re-reading LinkedIn (m1-plan §9). An M0-era seed (no graph, or a stale one)
@@ -37,7 +45,19 @@ export function App() {
     });
   }, []);
 
+  // Esc flies back out of a galaxy to the atlas (m2-plan §9).
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setNav((n) => (n.mode === 'galaxy' ? { mode: 'atlas' } : n));
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   async function handleSeed() {
+    setNav({ mode: 'atlas' });
     setView({ kind: 'seeding', message: 'Starting…' });
     try {
       const seed = await runSeed({
@@ -57,6 +77,57 @@ export function App() {
     }
   }
 
+  // Drill into a company: fly in immediately, then expand if not already cached
+  // (m2-plan §8, §9). Re-entering an expanded company never re-fetches.
+  async function handleExpand(companyId: string) {
+    if (view.kind !== 'seeded') return;
+    const company = view.graph.nodes.find((n) => n.id === companyId);
+    if (!company) return;
+
+    if (view.graph.expansions?.[companyId]) {
+      setNav({ mode: 'galaxy', companyId, status: 'ready' });
+      return;
+    }
+
+    setNav({ mode: 'galaxy', companyId, status: 'loading' });
+    // Only apply results if the user is still looking at this galaxy.
+    const stillHere = (n: GraphView) =>
+      n.mode === 'galaxy' && n.companyId === companyId;
+    try {
+      const expansion = await runExpandCompany(company, {
+        onProgress: (message) =>
+          setNav((n) => (stillHere(n) ? { ...n, status: 'loading', message } : n)),
+      });
+      setView((v) =>
+        v.kind === 'seeded'
+          ? {
+              ...v,
+              graph: {
+                ...v.graph,
+                expansions: {
+                  ...(v.graph.expansions ?? {}),
+                  [companyId]: expansion,
+                },
+              },
+            }
+          : v,
+      );
+      setNav((n) => (stillHere(n) ? { mode: 'galaxy', companyId, status: 'ready' } : n));
+    } catch (err) {
+      const e = err instanceof ExpandError ? err : null;
+      const status = e?.code === 'EMPTY' ? 'empty' : 'error';
+      setNav((n) =>
+        stillHere(n)
+          ? { mode: 'galaxy', companyId, status, message: e?.message }
+          : n,
+      );
+    }
+  }
+
+  function handleBack() {
+    setNav({ mode: 'atlas' });
+  }
+
   // Seeded is a full-bleed graph surface; other states sit in the narrow main.
   if (view.kind === 'seeded') {
     return (
@@ -66,7 +137,10 @@ export function App() {
         <SeededState
           seed={view.seed}
           graph={view.graph}
+          view={nav}
           onReseed={handleSeed}
+          onCompanyClick={handleExpand}
+          onBack={handleBack}
           animateIntro={animateIntro}
         />
       </div>
@@ -162,12 +236,18 @@ function ErrorState({
 function SeededState({
   seed,
   graph,
+  view,
   onReseed,
+  onCompanyClick,
+  onBack,
   animateIntro,
 }: {
   seed: Seed;
   graph: CareerGraphModel;
+  view: GraphView;
   onReseed: () => void;
+  onCompanyClick: (companyId: string) => void;
+  onBack: () => void;
   animateIntro: boolean;
 }) {
   const count = graph.nodes.length;
@@ -187,8 +267,15 @@ function SeededState({
       </section>
       {/* Key by the seed timestamp so a re-seed remounts the graph and the
           one-shot CSS ignition replays (CSS animations don't re-fire on a
-          mere re-render). */}
-      <CareerGraph key={graph.derivedFrom} graph={graph} animateIntro={animateIntro} />
+          mere re-render). Expansions reuse the same mount (no remount). */}
+      <CareerGraph
+        key={graph.derivedFrom}
+        graph={graph}
+        view={view}
+        onCompanyClick={onCompanyClick}
+        onBack={onBack}
+        animateIntro={animateIntro}
+      />
     </div>
   );
 }

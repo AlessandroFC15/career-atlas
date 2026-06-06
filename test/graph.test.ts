@@ -1,6 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { COL_GAP, deriveGraph, layout } from '../src/graph';
-import type { DateParts, ExperienceEntry, Seed } from '../src/types';
+import {
+  COL_GAP,
+  GALAXY_DROP,
+  GALAXY_PERSON_GAP,
+  deriveGraph,
+  layout,
+  layoutGalaxyFocus,
+  layoutGalaxyPerson,
+  personNodesFromRecords,
+} from '../src/graph';
+import type {
+  DateParts,
+  ExperienceEntry,
+  PersonRecord,
+  Seed,
+} from '../src/types';
 
 function entry(
   companyName: string,
@@ -117,5 +131,73 @@ describe('layout', () => {
 
   it('is deterministic — same order yields identical coordinates', () => {
     expect(layout(5)).toEqual(layout(5));
+  });
+});
+
+function record(vanity: string, opts: Partial<PersonRecord> = {}): PersonRecord {
+  return {
+    vanity,
+    profileUrl: `https://www.linkedin.com/in/${vanity}/`,
+    name: opts.name ?? vanity,
+    headline: opts.headline,
+    location: opts.location,
+    photoUrl: opts.photoUrl,
+  };
+}
+
+describe('layoutGalaxy', () => {
+  it('pins the focused company at the origin', () => {
+    expect(layoutGalaxyFocus()).toEqual({ x: 0, y: 0 });
+  });
+
+  it('lays people in a centered horizontal row below the focus', () => {
+    const row = [0, 1, 2].map((o) => layoutGalaxyPerson(o, 3));
+    // All on one row, centered around x=0: -gap, 0, +gap.
+    expect(row.map((p) => p.y)).toEqual([GALAXY_DROP, GALAXY_DROP, GALAXY_DROP]);
+    expect(row.map((p) => p.x)).toEqual([
+      -GALAXY_PERSON_GAP,
+      0,
+      GALAXY_PERSON_GAP,
+    ]);
+  });
+
+  it('centers a single person directly under the focused star', () => {
+    expect(layoutGalaxyPerson(0, 1)).toEqual({ x: 0, y: GALAXY_DROP });
+  });
+
+  it('keeps the people row clear of the focused star', () => {
+    expect(layoutGalaxyPerson(0, 4).y).toBeGreaterThan(layoutGalaxyFocus().y);
+  });
+});
+
+describe('personNodesFromRecords', () => {
+  it('scopes ids to the company so the same person under two companies differs', () => {
+    const recs = [record('ada-lovelace')];
+    const a = personNodesFromRecords('c0', recs);
+    const b = personNodesFromRecords('c2', recs);
+    expect(a[0].id).toBe('c0:ada-lovelace');
+    expect(b[0].id).toBe('c2:ada-lovelace');
+    expect(a[0].id).not.toBe(b[0].id);
+  });
+
+  it('builds raw Level 1 nodes carrying the parsed fields and column order', () => {
+    const nodes = personNodesFromRecords('c1', [
+      record('grace-hopper', {
+        name: 'Grace Hopper',
+        headline: 'Compiler Pioneer',
+        location: 'Arlington',
+        photoUrl: 'https://media.licdn.com/grace.jpg',
+      }),
+      record('alan-turing', { name: 'Alan Turing' }),
+    ]);
+    expect(nodes).toHaveLength(2);
+    expect(nodes.every((n) => n.kind === 'person' && n.level === 1)).toBe(true);
+    expect(nodes.every((n) => n.status === 'raw')).toBe(true);
+    expect(nodes.map((n) => n.parentId)).toEqual(['c1', 'c1']);
+    expect(nodes.map((n) => n.order)).toEqual([0, 1]);
+    expect(nodes[0].name).toBe('Grace Hopper');
+    expect(nodes[0].photoUrl).toBe('https://media.licdn.com/grace.jpg');
+    // Photo bytes are fetched later by the orchestrator, not here.
+    expect(nodes[0].photoDataUrl).toBeUndefined();
   });
 });

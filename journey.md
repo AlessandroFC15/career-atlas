@@ -47,8 +47,10 @@ The user clicks **"Seed my graph."**
 
 This is the only interactive action in the product, and it is available **only on your own companies.** Clicking a Level 0 node runs the following, with the worker tab visible the whole time.
 
-### 3a. Load the company's People page
-The extension navigates the worker tab to that company's People view, filtered to your connections. It captures the **first page** of connections (name, headline, location, profile link). One page load, triggered by your one click.
+### 3a. Load the company's people
+**(Source mechanism decided in M2.)** The extension navigates the worker tab to a **first-degree people search keyed on the company name** (`/search/results/people/?keywords=<company>&network=["F"]`), not the company's People tab. One query covers both current and past employees, relying on LinkedIn's relevance ranking. It captures the **first page** of connections (name, headline, location, profile link, photo). One page load, triggered by your one click. The search can surface people who never actually worked there; that over-matching is pruned by the overlap check in 3b.
+
+**(Navigation decided in M2.)** Clicking the company star does not append people to the chain in place: it **drills into that company's galaxy**, a view showing only that company as the major star with its people below. A back affordance (and Esc) returns to the atlas. See `m2-plan.md`.
 
 ### 3b. Auto-sweep each connection's profile
 Overlap cannot be known from the People page; it requires each person's dated tenure, which lives only on their profile. So the extension visits each first-page connection's profile **one at a time, at a human pace**, and for each:
@@ -83,7 +85,7 @@ No silent stopping, no infinite spinner.
 
 The user returns to the graph and clicks the next of **their own** companies. The same loop runs. The set of expandable nodes never grows: it is fixed at seed time to the companies you actually worked at.
 
-A useful emergent behavior: when two different colleagues both land at the same onward company, dedup (see below) collapses them onto **one shared Level 2 leaf**, so the graph visibly shows convergence ("two people I worked with both ended up at Z").
+A useful emergent behavior: when two different colleagues both land at the same onward company, dedup (see below) collapses them onto **one shared Level 2 leaf**, so the graph visibly shows convergence ("two people I worked with both ended up at Z"). **(Scoped in M2.)** Because you view one company's galaxy at a time, this convergence is only ever shown **within a single company's galaxy** (two colleagues from the *same* company landing at the same place). Cross-company convergence (colleagues from two *different* of your companies converging) is not surfaced in the drill-in model; a future atlas-wide view could restore it.
 
 ---
 

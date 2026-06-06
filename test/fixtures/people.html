@@ -1,0 +1,126 @@
+<!--
+  Synthetic first-degree people-search results, reconstructed from the live 2026
+  DOM structure (captured via Claude-in-Chrome). NO real PII: every name, vanity,
+  headline, location and photo is invented. Structure is faithful to the real
+  page so the parser's anchors are exercised:
+    - obfuscated class names (the parser must ignore classes),
+    - the connection-degree badge nested in a span (the real-card anchor),
+    - a profile link whose name text has a nested (non-leaf) span,
+    - headline + location as leaf <span>s in their own subtitle blocks,
+    - a doubled a11y name echo, a "Current:" line, a mutual-connections line,
+      and a Message action (all must be filtered out of headline/location),
+    - one locale-suffixed profile URL (/in/<vanity>/en/),
+    - one card with only a ghost photo (no real src),
+    - one card with no location line,
+    - a mutual-connections facepile and a "people also viewed" sidebar whose
+      /in/ links carry NO badge (must be excluded as non-results).
+-->
+<main>
+  <div class="search-results-container">
+    <ul class="reusable-search__entity-result-list _3f1d">
+      <!-- Card 1: full record, with the a11y name echo + Current/mutual/Message noise. -->
+      <li class="reusable-search__result-container _7d9e4974">
+        <div class="_05efea2b name-block">
+          <span class="_689c2732">Ada Lovelace</span>
+          <span class="_689c2732">Ada Lovelace</span>
+        </div>
+        <figure class="_88ea701d">
+          <img class="presence-entity__image _975b5252" src="https://media.licdn.com/dms/image/ada-lovelace.jpg" alt="" />
+        </figure>
+        <div class="entity-result__content _8f55ad10">
+          <p class="entity-result__title _2eb95346">
+            <a class="app-aware-link bec82545" href="https://www.linkedin.com/in/ada-lovelace/">Ada Lovelace<span class="visually-hidden"></span></a>
+            <span class="entity-result__badge _354585b3"><span class="da5267a2">&#8226; 1st</span></span>
+          </p>
+          <div class="entity-result__primary-subtitle f4047763">
+            <p class="_2eb95346"><span>Engineering Lead at Beacon</span></p>
+          </div>
+          <div class="entity-result__secondary-subtitle df4fa34d">
+            <p class="_2eb95346"><span>London, England, United Kingdom</span></p>
+          </div>
+          <div class="entity-result__summary _8d554a10">
+            <p class="_2eb95346"><span>Current: Engineering Lead at Beacon</span></p>
+          </div>
+          <div class="reusable-search-simple-insight">
+            <span>12 mutual connections</span>
+          </div>
+          <div class="entity-result__actions">
+            <button class="_67eb74cd"><span>Message</span></button>
+          </div>
+        </div>
+      </li>
+
+      <!-- Card 2: locale-suffixed profile URL (/in/grace-hopper/en/). -->
+      <li class="reusable-search__result-container _7d9e4974">
+        <figure class="_88ea701d">
+          <img class="presence-entity__image" src="https://media.licdn.com/dms/image/grace-hopper.jpg" alt="" />
+        </figure>
+        <div class="entity-result__content">
+          <p class="entity-result__title">
+            <a class="app-aware-link" href="https://www.linkedin.com/in/grace-hopper/en/?miniProfileUrn=abc">Grace Hopper<span class="visually-hidden"></span></a>
+            <span class="entity-result__badge"><span>&#8226; 1st</span></span>
+          </p>
+          <div class="entity-result__primary-subtitle">
+            <p><span>Compiler Pioneer at Univac</span></p>
+          </div>
+          <div class="entity-result__secondary-subtitle">
+            <p><span>Arlington, Virginia, United States</span></p>
+          </div>
+          <div class="entity-result__actions">
+            <button><span>Connect</span></button>
+          </div>
+        </div>
+      </li>
+
+      <!-- Card 3: only a ghost photo (no real src) -> photoUrl should be undefined. -->
+      <li class="reusable-search__result-container _7d9e4974">
+        <figure class="_88ea701d">
+          <img class="presence-entity__image" src="https://static.licdn.com/aero-v1/sc/h/ghost-person.png" alt="" />
+        </figure>
+        <div class="entity-result__content">
+          <p class="entity-result__title">
+            <a class="app-aware-link" href="https://www.linkedin.com/in/alan-turing/">Alan Turing<span class="visually-hidden"></span></a>
+            <span class="entity-result__badge"><span>&#8226; 1st</span></span>
+          </p>
+          <div class="entity-result__primary-subtitle">
+            <p><span>Cryptanalyst at Bletchley</span></p>
+          </div>
+          <div class="entity-result__secondary-subtitle">
+            <p><span>Manchester, England, United Kingdom</span></p>
+          </div>
+        </div>
+      </li>
+
+      <!-- Card 4: no location line -> location should be undefined. -->
+      <li class="reusable-search__result-container _7d9e4974">
+        <figure class="_88ea701d">
+          <img class="presence-entity__image" src="https://media.licdn.com/dms/image/margaret-hamilton.jpg" alt="" />
+        </figure>
+        <div class="entity-result__content">
+          <p class="entity-result__title">
+            <a class="app-aware-link" href="https://www.linkedin.com/in/margaret-hamilton/">Margaret Hamilton<span class="visually-hidden"></span></a>
+            <span class="entity-result__badge"><span>&#8226; 1st</span></span>
+          </p>
+          <div class="entity-result__primary-subtitle">
+            <p><span>Director of Software Engineering at Apollo</span></p>
+          </div>
+          <div class="entity-result__actions">
+            <button><span>Message</span></button>
+          </div>
+        </div>
+      </li>
+    </ul>
+
+    <!-- Mutual-connections facepile: /in/ links, NO degree badge (must be excluded). -->
+    <div class="search-results__facepile">
+      <a href="https://www.linkedin.com/in/george-boole/"><img src="https://media.licdn.com/dms/image/george.jpg" alt="" /></a>
+      <span>George Boole and 169 others</span>
+    </div>
+  </div>
+
+  <!-- "People also viewed" sidebar: /in/ links, NO badge (must be excluded). -->
+  <aside class="search-sidebar">
+    <a href="https://www.linkedin.com/in/claude-shannon/">Claude Shannon</a>
+    <a href="https://www.linkedin.com/in/john-von-neumann/">John von Neumann</a>
+  </aside>
+</main>
