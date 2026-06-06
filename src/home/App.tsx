@@ -15,6 +15,10 @@ type View =
 
 export function App() {
   const [view, setView] = useState<View>({ kind: 'loading' });
+  // True only after a fresh seed/re-seed (handleSeed), so the staggered star
+  // ignition plays as a reward for that action. The load-on-mount path leaves
+  // this false, so reopening an existing graph renders instantly.
+  const [animateIntro, setAnimateIntro] = useState(false);
 
   // Read-on-mount: render the materialized graph from the store, never by
   // re-reading LinkedIn (m1-plan §9). An M0-era seed (no graph, or a stale one)
@@ -41,6 +45,7 @@ export function App() {
       });
       // runSeed already persisted the graph; derive the same view model here
       // (deriveGraph is pure) rather than a second storage round-trip.
+      setAnimateIntro(true);
       setView({ kind: 'seeded', seed, graph: deriveGraph(seed) });
     } catch (err) {
       const e = err instanceof SeedError ? err : null;
@@ -58,7 +63,12 @@ export function App() {
       <div className="app">
         <Cosmos />
         <Brand />
-        <SeededState seed={view.seed} graph={view.graph} onReseed={handleSeed} />
+        <SeededState
+          seed={view.seed}
+          graph={view.graph}
+          onReseed={handleSeed}
+          animateIntro={animateIntro}
+        />
       </div>
     );
   }
@@ -153,10 +163,12 @@ function SeededState({
   seed,
   graph,
   onReseed,
+  animateIntro,
 }: {
   seed: Seed;
   graph: CareerGraphModel;
   onReseed: () => void;
+  animateIntro: boolean;
 }) {
   const count = graph.nodes.length;
   return (
@@ -173,7 +185,10 @@ function SeededState({
           Re-seed
         </button>
       </section>
-      <CareerGraph graph={graph} />
+      {/* Key by the seed timestamp so a re-seed remounts the graph and the
+          one-shot CSS ignition replays (CSS animations don't re-fire on a
+          mere re-render). */}
+      <CareerGraph key={graph.derivedFrom} graph={graph} animateIntro={animateIntro} />
     </div>
   );
 }

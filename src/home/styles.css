@@ -281,6 +281,48 @@ html, body {
   .career-star { animation: none; }
 }
 
+/* === Intro: staggered "ignition" of the chain on a fresh seed ===============
+   Only active under .career-graph[data-intro], set by CareerGraph when App
+   passes animateIntro (the handleSeed path). On load-from-storage the attribute
+   is absent and everything renders static and fully visible. Pure CSS, keyed on
+   --i (chain order, already on every node/beam); no JS timers. STAGGER is the
+   per-node delay, POP the ignition duration — keep in sync with the m1 spec. */
+.career-graph[data-intro] {
+  --stagger: 450ms;
+  --pop: 1650ms;
+}
+/* Each star ignites: scale up from a point with a gentle overshoot, fading in.
+   `backwards` holds the 0% frame (invisible) through the delay, so a not-yet-lit
+   star never flashes before its turn. The inner-card transform is independent of
+   React Flow's positioning transform and doesn't affect fitView measurement. */
+.career-graph[data-intro] .career-node {
+  animation: star-ignite var(--pop) cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: calc(var(--i) * var(--stagger));
+}
+@keyframes star-ignite {
+  0% { opacity: 0; transform: scale(0.6); }
+  70% { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 1; transform: scale(1); }
+}
+/* A beam fades in just as its target star lights up (--i = target's order). */
+.career-graph[data-intro] .career-beam {
+  animation: beam-draw var(--pop) ease-out backwards;
+  animation-delay: calc(var(--i) * var(--stagger));
+}
+@keyframes beam-draw {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+/* Hold the ambient drift until a star has settled, then let it loop. Because
+   each settle time differs by --stagger, the loops also stay desynced. */
+.career-graph[data-intro] .career-star {
+  animation-delay: calc(var(--i) * var(--stagger) + var(--pop));
+}
+@media (prefers-reduced-motion: reduce) {
+  .career-graph[data-intro] .career-node,
+  .career-graph[data-intro] .career-beam { animation: none; }
+}
+
 /* Label: company name is the hero; tenure is a faint, secondary footnote. */
 .career-node__label {
   display: flex;

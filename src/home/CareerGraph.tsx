@@ -93,9 +93,13 @@ function ConstellationEdge({
   sourceY,
   targetX,
   targetY,
+  data,
 }: EdgeProps) {
   const [path] = getStraightPath({ sourceX, sourceY, targetX, targetY });
   const gradientId = `beam-${id}`;
+  // `--i` is the target node's chain order, so the beam fades in as its target
+  // star ignites during the intro (see the `data-intro` rules in styles.css).
+  const beamStyle = { '--i': (data?.index as number) ?? 0 } as CSSProperties;
   return (
     <>
       <defs>
@@ -112,19 +116,22 @@ function ConstellationEdge({
         </linearGradient>
       </defs>
       <path
+        className="career-beam"
         d={path}
         fill="none"
         stroke="rgba(124, 140, 255, 0.35)"
         strokeWidth={4}
         strokeLinecap="round"
-        style={{ filter: 'blur(3px)' }}
+        style={{ ...beamStyle, filter: 'blur(3px)' }}
       />
       <path
+        className="career-beam"
         d={path}
         fill="none"
         stroke={`url(#${gradientId})`}
         strokeWidth={1.5}
         strokeLinecap="round"
+        style={beamStyle}
       />
     </>
   );
@@ -216,8 +223,21 @@ function useLogoColors(nodes: GraphNode[]): Record<string, string> {
  * Renders the materialized graph as a left-to-right career chain (§7).
  * Positions are computed from `order` via layout(), never read from the store.
  */
-export function CareerGraph({ graph }: { graph: CareerGraphModel }) {
+export function CareerGraph({
+  graph,
+  animateIntro = false,
+}: {
+  graph: CareerGraphModel;
+  animateIntro?: boolean;
+}) {
   const colors = useLogoColors(graph.nodes);
+
+  // Chain order keyed by node id, so each edge can carry its target's order
+  // and the beam fades in as that star ignites during the intro.
+  const orderById = useMemo(
+    () => Object.fromEntries(graph.nodes.map((n) => [n.id, n.order])),
+    [graph.nodes],
+  );
 
   const nodes = useMemo<Node<CompanyNodeData>[]>(
     () =>
@@ -244,12 +264,13 @@ export function CareerGraph({ graph }: { graph: CareerGraphModel }) {
         type: 'next',
         source: e.source,
         target: e.target,
+        data: { index: orderById[e.target] ?? 0 },
       })),
-    [graph.edges],
+    [graph.edges, orderById],
   );
 
   return (
-    <div className="career-graph">
+    <div className="career-graph" data-intro={animateIntro ? '' : undefined}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
