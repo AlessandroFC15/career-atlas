@@ -22,3 +22,4 @@ Open taste calls (not yet decided): exact accent hue (indigo vs. cyan vs. gold/c
 
 - Pure, side-effect-free logic (e.g. `deriveGraph`, `layout` in `src/graph.ts`) stays free of DOM/storage/React and is unit-tested (Vitest + jsdom). React Flow rendering is eyeballed, not unit-tested.
 - Writing style: no em dashes.
+- Git: commit directly to `main` (no feature branch) unless told otherwise.
