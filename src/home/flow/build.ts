@@ -50,6 +50,7 @@ export function buildAtlas(
     draggable: false,
   }));
   const fading = fadeExceptId !== undefined;
+  const orderById = new Map(graph.nodes.map((n) => [n.id, n.order]));
   const edges: Edge[] = graph.edges.map((e) => ({
     id: e.id,
     type: 'next',
@@ -57,7 +58,10 @@ export function buildAtlas(
     target: e.target,
     sourceHandle: 'r',
     targetHandle: 'l',
-    data: { faded: fading }, // dissolve the beams with the siblings on drill-in
+    // `faded` dissolves the beams with the siblings on drill-in. `index` is the
+    // target star's chain order, so the intro can draw each beam in step with
+    // the star it points at (the edge layer can't inherit the node's --i).
+    data: { faded: fading, index: orderById.get(e.target) ?? 0 },
   }));
   return { nodes, edges };
 }

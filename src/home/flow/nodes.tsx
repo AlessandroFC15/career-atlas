@@ -61,8 +61,14 @@ function CompanyNode({ data }: NodeProps<Node<CompanyNodeData>>) {
         style={{ ...handleStyle, left: ORB_INSET }}
       />
       <div className="career-node__pop">
-        <div className="career-star" style={{ width: ORB, height: ORB }}>
-          <CompanyLogo dataUrl={data.logoDataUrl} name={data.name} size={LOGO} />
+        {/* The hover lift + post-seed ripple ride on this wrapper, not on
+            .career-star (which runs the infinite starfloat) nor .career-node
+            (which carries the edge handles), so the transforms compose and the
+            beams stay pinned to the orb center (143ece1). See styles.css §M2. */}
+        <div className="career-star-wrap">
+          <div className="career-star" style={{ width: ORB, height: ORB }}>
+            <CompanyLogo dataUrl={data.logoDataUrl} name={data.name} size={LOGO} />
+          </div>
         </div>
         <div className="career-node__label">
           <span className="career-node__name" title={data.name}>

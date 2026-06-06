@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { getStraightPath, type EdgeProps } from '@xyflow/react';
 
 /**
@@ -15,9 +16,14 @@ function ConstellationEdge({
 }: EdgeProps) {
   const [path] = getStraightPath({ sourceX, sourceY, targetX, targetY });
   const gradientId = `beam-${id}`;
-  const faded = (data as { faded?: boolean } | undefined)?.faded;
+  const meta = data as { faded?: boolean; index?: number } | undefined;
+  const className = 'career-edge' + (meta?.faded ? ' career-edge--faded' : '');
+  // --i = the target star's chain order, so the intro staggers each beam to draw
+  // as its destination star ignites (see styles.css). The whole group fades, so
+  // the blurred glow underlay lights up with the sharp beam, not before it.
+  const style = { '--i': meta?.index ?? 0 } as CSSProperties;
   return (
-    <g className={faded ? 'career-edge--faded' : undefined}>
+    <g className={className} style={style}>
       <defs>
         <linearGradient
           id={gradientId}

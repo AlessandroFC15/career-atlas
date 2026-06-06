@@ -271,6 +271,7 @@ html, body {
     0 0 46px 6px color-mix(in srgb, var(--star-color) 34%, transparent); /* far corona */
   animation: starfloat 7s ease-in-out infinite;
   animation-delay: calc(var(--i) * -1.1s);
+  transition: box-shadow 180ms ease-out; /* corona blooms/settles on hover (§M2) */
   will-change: transform;
 }
 /* The logo fills the coin. */
@@ -286,6 +287,62 @@ html, body {
 }
 @media (prefers-reduced-motion: reduce) {
   .career-star { animation: none; }
+}
+
+/* === M2: star discoverability (m2-discoverability-plan) =====================
+   A company star is a door into its galaxy. The affordance is wordless: a
+   pointer cursor, a hover lift + corona bloom that rehearse the fly-in, and a
+   faint ring previewing "this star contains a system you can enter." Scoped to
+   the atlas (the focused star in a galaxy is not clickable). Layer 2 (the
+   post-seed ripple) lives with the intro block below.
+
+   The lift rides on .career-star-wrap so it composes with the orb's infinite
+   starfloat (different element) and never touches the React Flow handles on
+   .career-node, keeping the beams centered (143ece1). */
+.career-graph[data-mode='atlas'] .career-node { cursor: pointer; }
+
+.career-star-wrap {
+  display: grid; /* shrink-wrap the orb so the lift scales from its center */
+  transition: transform 180ms ease-out;
+  will-change: transform;
+}
+.career-graph[data-mode='atlas'] .career-node:hover .career-star-wrap {
+  transform: scale(1.06) translateY(-2px); /* rises toward you, like the fly-in */
+}
+/* Corona bloom: the same two layers as the base star, pushed brighter/wider. */
+.career-graph[data-mode='atlas'] .career-node:hover .career-star {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.5),
+    0 12px 28px rgba(0, 0, 0, 0.55),
+    0 0 28px 2px color-mix(in srgb, var(--star-color) 85%, transparent),
+    0 0 66px 12px color-mix(in srgb, var(--star-color) 50%, transparent);
+}
+
+/* Layer 3 — orbit ring: a thin hue-tinted circle a hair outside the rim. Lives
+   as a pseudo-element (no extra DOM); hidden + slightly shrunk until hover. */
+.career-star::after {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--star-color) 55%, transparent);
+  opacity: 0;
+  transform: scale(0.9);
+  transition: opacity 180ms ease-out, transform 180ms ease-out;
+  pointer-events: none;
+}
+.career-graph[data-mode='atlas'] .career-node:hover .career-star::after {
+  opacity: 1;
+  transform: scale(1);
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Hover collapses to a static brightness change: no lift, no ring fade. */
+  .career-star-wrap { transition: none; }
+  .career-graph[data-mode='atlas'] .career-node:hover .career-star-wrap {
+    transform: none;
+  }
+  .career-star { transition: none; }
+  .career-star::after { display: none; }
 }
 
 /* === Intro: staggered "ignition" of the chain on a fresh seed ===============
@@ -311,10 +368,13 @@ html, body {
   70% { opacity: 1; transform: scale(1.05); }
   100% { opacity: 1; transform: scale(1); }
 }
-/* A beam fades in just as its target star lights up (--i = target's order). */
-.career-graph[data-intro] .career-beam {
+/* A beam fades in just after its target star starts lighting up (--i = target's
+   order, set on the edge group in edges.tsx). The whole group animates, so the
+   blurred glow underlay fades in with the sharp beam instead of showing up
+   first. The +pop*0.2 offset lets the star lead, so beams never precede orbs. */
+.career-graph[data-intro] .career-edge {
   animation: beam-draw var(--pop) ease-out backwards;
-  animation-delay: calc(var(--i) * var(--stagger));
+  animation-delay: calc(var(--i) * var(--stagger) + var(--pop) * 0.2);
 }
 @keyframes beam-draw {
   from { opacity: 0; }
@@ -325,9 +385,23 @@ html, body {
 .career-graph[data-intro] .career-star {
   animation-delay: calc(var(--i) * var(--stagger) + var(--pop));
 }
+/* Layer 2 — post-seed ripple: one gentle swell per star, slotted at the same
+   moment each one settles (i*stagger + pop), so it reads as a single "breathe"
+   wave travelling down the chain after ignition. Rides the hover wrapper (so it
+   composes with starfloat) and runs once, only on a fresh seed. Scaling the
+   wrapper also swells the child's corona, so it glows as it breathes. */
+.career-graph[data-intro] .career-star-wrap {
+  animation: star-ripple 700ms ease-in-out backwards;
+  animation-delay: calc(var(--i) * var(--stagger) + var(--pop));
+}
+@keyframes star-ripple {
+  0%, 100% { transform: scale(1); }
+  45% { transform: scale(1.05); }
+}
 @media (prefers-reduced-motion: reduce) {
   .career-graph[data-intro] .career-node__pop,
-  .career-graph[data-intro] .career-beam { animation: none; }
+  .career-graph[data-intro] .career-star-wrap,
+  .career-graph[data-intro] .career-edge { animation: none; }
 }
 
 /* Sibling stars dissolve during a drill-in (the "entering" beat) so they don't
