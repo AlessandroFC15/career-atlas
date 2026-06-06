@@ -6,7 +6,9 @@ The ordering is deliberate. The riskiest deterministic work (reading a real Link
 
 ---
 
-## M0 — Seed and show
+## M0 — Seed and show ✅
+
+*Status: shipped (commit `8253708`).*
 
 Install the extension, click its icon, the home tab opens. Click **"Seed my graph"**, the worker tab navigates to your own logged-in profile, parses your experience section, and the home tab shows **your name and a plain list of the companies you've worked for** (with tenure dates). No graph yet, just a list.
 
@@ -14,7 +16,9 @@ Install the extension, click its icon, the home tab opens. Click **"Seed my grap
 
 ---
 
-## M1 — Plot the seed
+## M1 — Plot the seed ✅
+
+*Status: shipped (commit `debbe5a`). Detailed plan in `m1-plan.md`. Rendered with React Flow; the seed is materialized into a separate `graph` store. Visuals went beyond the brief into a cosmic star-chart treatment (see `CLAUDE.md`).*
 
 Same data, now rendered as an actual graph: your companies as a **horizontal career chain** (chronological, each linked to the next), as dormant **Level 0 nodes**. You appear in a header bar, not as a graph node. Reopening the extension shows the same graph from local storage instead of re-reading.
 
@@ -22,7 +26,7 @@ Same data, now rendered as an actual graph: your companies as a **horizontal car
 
 ---
 
-## M2 — Expand a company into its people
+## M2 — Expand a company into its people ⬅ next
 
 Click a Level 0 node. The worker tab loads that company's People view filtered to your connections, captures the **first page**, and plots those people as raw **Level 1 nodes** hanging off the company. Not overlap-verified yet, just the initial list.
 
