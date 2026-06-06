@@ -61,14 +61,19 @@ function CompanyNode({ data }: NodeProps<Node<CompanyNodeData>>) {
         isConnectable={false}
         style={{ ...handleStyle, left: ORB_INSET }}
       />
-      <div className="career-star" style={{ width: ORB, height: ORB }}>
-        <CompanyLogo dataUrl={data.logoDataUrl} name={data.name} size={LOGO} />
-      </div>
-      <div className="career-node__label">
-        <span className="career-node__name" title={data.name}>
-          {data.name}
-        </span>
-        <span className="career-node__tenure">{data.tenure}</span>
+      {/* Only the visible star + label scale during the intro; the handles stay
+          outside this wrapper so React Flow measures their (unscaled) positions
+          correctly and the beams stay centered on the orb. */}
+      <div className="career-node__pop">
+        <div className="career-star" style={{ width: ORB, height: ORB }}>
+          <CompanyLogo dataUrl={data.logoDataUrl} name={data.name} size={LOGO} />
+        </div>
+        <div className="career-node__label">
+          <span className="career-node__name" title={data.name}>
+            {data.name}
+          </span>
+          <span className="career-node__tenure">{data.tenure}</span>
+        </div>
       </div>
       <Handle
         type="source"

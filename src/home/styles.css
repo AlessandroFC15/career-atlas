@@ -234,6 +234,13 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+/* Wraps only the visible star + label, so the intro scale never touches the
+   edge handles (see CompanyNode); keeps the orb + label stacked with a gap. */
+.career-node__pop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: 12px;
 }
 /* Edge handles attach to the orb rim; never show the connection dots. */
@@ -295,7 +302,7 @@ html, body {
    `backwards` holds the 0% frame (invisible) through the delay, so a not-yet-lit
    star never flashes before its turn. The inner-card transform is independent of
    React Flow's positioning transform and doesn't affect fitView measurement. */
-.career-graph[data-intro] .career-node {
+.career-graph[data-intro] .career-node__pop {
   animation: star-ignite var(--pop) cubic-bezier(0.22, 1, 0.36, 1) backwards;
   animation-delay: calc(var(--i) * var(--stagger));
 }
@@ -319,7 +326,7 @@ html, body {
   animation-delay: calc(var(--i) * var(--stagger) + var(--pop));
 }
 @media (prefers-reduced-motion: reduce) {
-  .career-graph[data-intro] .career-node,
+  .career-graph[data-intro] .career-node__pop,
   .career-graph[data-intro] .career-beam { animation: none; }
 }
 
