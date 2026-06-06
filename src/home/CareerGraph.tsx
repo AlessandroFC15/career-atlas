@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Controls,
   ReactFlow,
@@ -61,9 +61,16 @@ function Flow({
       : { k: 'atlas' },
   );
 
+  // The ignition is a one-shot reward for seeding. Once the user leaves the
+  // atlas (drills into a galaxy), it must not replay on the way back: latch it
+  // off the moment we leave. A re-seed remounts this component (keyed by the
+  // seed timestamp in App), which resets the latch so the next seed replays it.
+  const introSpent = useRef(false);
+
   const viewKey = view.mode === 'galaxy' ? view.companyId : 'atlas';
   useEffect(() => {
     if (view.mode === 'galaxy' && phase.k === 'atlas') {
+      introSpent.current = true;
       setPhase({ k: 'entering', id: view.companyId });
       const t = setTimeout(
         () => setPhase({ k: 'galaxy', id: view.companyId }),
@@ -117,7 +124,11 @@ function Flow({
     <div
       className="career-graph"
       data-mode={inGalaxy ? 'galaxy' : 'atlas'}
-      data-intro={animateIntro && phase.k === 'atlas' ? '' : undefined}
+      data-intro={
+        animateIntro && phase.k === 'atlas' && !introSpent.current
+          ? ''
+          : undefined
+      }
     >
       <ReactFlow
         nodes={scene.nodes}
