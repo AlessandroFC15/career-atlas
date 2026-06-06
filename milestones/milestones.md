@@ -26,15 +26,15 @@ Same data, now rendered as an actual graph: your companies as a **horizontal car
 
 ---
 
-## M2 — Expand a company into its people ⬅ next
+## M2 — Expand a company into its people ✅
 
-*Detailed plan in `m2-plan.md`.* Click a Level 0 node and **drill into that company's galaxy** (the chain fades, that company becomes the major star). The worker tab loads a **first-degree people search keyed on the company name** (`network=["F"]`, one query instead of a current/past company facet), captures the **first page** (~10), and plots those people as raw **Level 1 nodes** in a column below the company. Not overlap-verified yet, just the initial list. A back affordance (and Esc) returns to the atlas.
+*Status: shipped (commit `1fcd75f`). Detailed plan in `m2-plan.md`.* Click a Level 0 node and **drill into that company's galaxy** (the chain fades, the camera flies into the focused star). The worker tab loads a **first-degree people search keyed on the company name** (`network=["F"]`, one query instead of a current/past company facet), captures the **first page** (~10), and plots those people as raw **Level 1 nodes** in a horizontal row below the company (names on hover). Not overlap-verified yet, just the initial list. A back affordance (and Esc) returns to the atlas.
 
 **Proves:** the people-search parser, the drill-in galaxy navigation, and the one-page-per-click expansion model (plus the graph store now holding non-derivable expansion data).
 
 ---
 
-## M3 — Verify overlap (prune to people you actually worked with)
+## M3 — Verify overlap (prune to people you actually worked with) ⬅ next
 
 For each connection from M2, the worker tab visits their profile one at a time, parses their dated tenure, and checks whether it overlaps yours at that company. Overlaps stay as verified Level 1 nodes; non-overlaps (and missing-date cases) get pruned. The graph updates **person by person, live**.
 
