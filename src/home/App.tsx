@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { loadGraph, loadSeed, saveGraph } from '../storage';
 import { deriveGraph } from '../graph';
 import {
@@ -8,18 +8,40 @@ import {
   SeedError,
 } from '../orchestrator';
 import type { CareerGraph as CareerGraphModel, Seed } from '../types';
-import { Avatar, Spinner } from './components';
+import { Avatar } from './components';
 import { CareerGraph, type GraphView } from './CareerGraph';
+import { BreathingStar, LoadingChart, useSeedReveal } from './LoadingChart';
 
 type View =
   | { kind: 'loading' }
   | { kind: 'empty' }
-  | { kind: 'seeding'; message: string }
+  | { kind: 'seeding' }
   | { kind: 'seeded'; seed: Seed; graph: CareerGraphModel }
   | { kind: 'error'; code: string; message: string };
 
+// The cross-dissolve window (§8): both LoadingChart and CareerGraph are mounted
+// while the loading scatter fades out over M1's staggered ignition, then the
+// scatter unmounts. Tuned against the intro's first beats, not star coordinates.
+const HANDOFF_MS = 1000;
+// A short hold on the fully-lit scatter (its phase text already fading out)
+// before it dissolves into the graph, so the climax settles without lingering.
+const CLIMAX_HOLD_MS = 300;
+
 export function App() {
   const [view, setView] = useState<View>({ kind: 'loading' });
+  // Paced seeding state driving the LoadingChart (§5): the hook throttles the
+  // orchestrator's events to a legible minimum beat. `progress` is kept past
+  // success so the fading handoff overlay still shows the full, lit scatter.
+  const reveal = useSeedReveal();
+  // True only during the brief cross-dissolve after a successful seed.
+  const [handoff, setHandoff] = useState(false);
+  // The dissolve waits for two independent signals: the seed finishing (the
+  // graph is ready) and the climax sweep finishing (every star has ignited).
+  // Whichever lands last triggers it, exactly once. Refs, not state: they only
+  // gate an imperative timer, never the render.
+  const pendingSeed = useRef<{ seed: Seed; graph: CareerGraphModel } | null>(null);
+  const climaxDone = useRef(false);
+  const dissolved = useRef(false);
   // True only after a fresh seed/re-seed (handleSeed), so the staggered star
   // ignition plays as a reward for that action. The load-on-mount path leaves
   // this false, so reopening an existing graph renders instantly.
@@ -32,17 +54,36 @@ export function App() {
   // re-reading LinkedIn (m1-plan §9). An M0-era seed (no graph, or a stale one)
   // migrates silently here: derive once, persist, then render.
   useEffect(() => {
-    Promise.all([loadSeed(), loadGraph()]).then(async ([seed, graph]) => {
-      if (!seed) {
-        setView({ kind: 'empty' });
-        return;
-      }
-      if (!graph || graph.derivedFrom !== seed.seededAt) {
-        graph = deriveGraph(seed);
-        await saveGraph(graph);
-      }
-      setView({ kind: 'seeded', seed, graph });
-    });
+    let settled = false;
+    // The `loading` view must never be a dead end. If the storage read rejects
+    // or hangs (e.g. the extension context was invalidated by a rebuild while
+    // this page stayed open), fall back to the welcome instead of the lone
+    // loading star sitting forever.
+    const leaveLoading = () =>
+      setView((v) => (v.kind === 'loading' ? { kind: 'empty' } : v));
+    const fallback = setTimeout(() => {
+      if (!settled) leaveLoading();
+    }, 4000);
+    Promise.all([loadSeed(), loadGraph()])
+      .then(async ([seed, graph]) => {
+        settled = true;
+        clearTimeout(fallback);
+        if (!seed) {
+          setView({ kind: 'empty' });
+          return;
+        }
+        if (!graph || graph.derivedFrom !== seed.seededAt) {
+          graph = deriveGraph(seed);
+          await saveGraph(graph);
+        }
+        setView({ kind: 'seeded', seed, graph });
+      })
+      .catch(() => {
+        settled = true;
+        clearTimeout(fallback);
+        leaveLoading();
+      });
+    return () => clearTimeout(fallback);
   }, []);
 
   // Esc flies back out of a galaxy to the atlas (m2-plan §9).
@@ -56,18 +97,39 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // Fire the dissolve once both the graph is ready and the climax has finished.
+  // Holds the lit field a beat, then mounts the graph (firing M1's ignition)
+  // under a fading LoadingChart overlay for the cross-dissolve (§8).
+  function maybeDissolve() {
+    if (dissolved.current) return;
+    if (!pendingSeed.current || !climaxDone.current) return;
+    dissolved.current = true;
+    const { seed, graph } = pendingSeed.current;
+    setTimeout(() => {
+      setAnimateIntro(true);
+      setView({ kind: 'seeded', seed, graph });
+      setHandoff(true);
+      setTimeout(() => setHandoff(false), HANDOFF_MS);
+    }, CLIMAX_HOLD_MS);
+  }
+
   async function handleSeed() {
     setNav({ mode: 'atlas' });
-    setView({ kind: 'seeding', message: 'Starting…' });
+    reveal.reset();
+    setHandoff(false);
+    pendingSeed.current = null;
+    climaxDone.current = false;
+    dissolved.current = false;
+    setView({ kind: 'seeding' });
     try {
-      const seed = await runSeed({
-        onProgress: (message) => setView({ kind: 'seeding', message }),
-      });
+      const seed = await runSeed({ onProgress: reveal.push });
       // runSeed already persisted the graph; derive the same view model here
-      // (deriveGraph is pure) rather than a second storage round-trip.
-      setAnimateIntro(true);
-      setView({ kind: 'seeded', seed, graph: deriveGraph(seed) });
+      // (deriveGraph is pure) rather than a second storage round-trip. The actual
+      // swap waits for the climax sweep to finish (see maybeDissolve).
+      pendingSeed.current = { seed, graph: deriveGraph(seed) };
+      maybeDissolve();
     } catch (err) {
+      reveal.reset();
       const e = err instanceof SeedError ? err : null;
       setView({
         kind: 'error',
@@ -128,6 +190,15 @@ export function App() {
     setNav({ mode: 'atlas' });
   }
 
+  // Re-seed returns to the initial "Seed my graph" screen rather than launching
+  // straight into a seed, so the user re-enters the reveal deliberately. The
+  // persisted seed/graph are left untouched (reopening still restores them); this
+  // only resets the in-session view.
+  function handleReset() {
+    setNav({ mode: 'atlas' });
+    setView({ kind: 'empty' });
+  }
+
   // Seeded is a full-bleed graph surface; other states sit in the narrow main.
   if (view.kind === 'seeded') {
     return (
@@ -138,10 +209,30 @@ export function App() {
           seed={view.seed}
           graph={view.graph}
           view={nav}
-          onReseed={handleSeed}
+          onReseed={handleReset}
           onCompanyClick={handleExpand}
           onBack={handleBack}
           animateIntro={animateIntro}
+        />
+        {/* Cross-dissolve: the loading scatter fades out over the ignition (§8). */}
+        {handoff && <LoadingChart progress={reveal.progress} fading />}
+      </div>
+    );
+  }
+
+  // Seeding is the full-bleed cosmic loading sequence; the other narrow states
+  // (empty / error) and the reopen flash sit in the centered main column.
+  if (view.kind === 'seeding') {
+    return (
+      <div className="app">
+        <Cosmos />
+        <Brand />
+        <LoadingChart
+          progress={reveal.progress}
+          onClimaxDone={() => {
+            climaxDone.current = true;
+            maybeDissolve();
+          }}
         />
       </div>
     );
@@ -152,9 +243,8 @@ export function App() {
       <Cosmos />
       <Brand />
       <main className="app__main">
-        {view.kind === 'loading' && <Spinner />}
+        {view.kind === 'loading' && <BreathingStar />}
         {view.kind === 'empty' && <EmptyState onSeed={handleSeed} />}
-        {view.kind === 'seeding' && <SeedingState message={view.message} />}
         {view.kind === 'error' && (
           <ErrorState code={view.code} message={view.message} onRetry={handleSeed} />
         )}
@@ -188,22 +278,20 @@ function Cosmos() {
   );
 }
 
+/** The first-run welcome: a quiet anchor star (the same one a seed ignites the
+ *  chart around), a headline, the value prop, then the call to seed. */
 function EmptyState({ onSeed }: { onSeed: () => void }) {
   return (
-    <div className="center">
-      <p className="muted">Build your career graph from your own LinkedIn history.</p>
-      <button className="btn btn--primary" onClick={onSeed}>
+    <div className="welcome">
+      <span className="welcome__star" aria-hidden="true" />
+      <h1 className="welcome__title">Your career, as a star chart</h1>
+      <p className="welcome__lede">
+        Career Atlas charts your professional history from your own LinkedIn
+        profile: every company a star, every move a path between them.
+      </p>
+      <button className="btn btn--primary welcome__cta" onClick={onSeed}>
         Seed my graph
       </button>
-    </div>
-  );
-}
-
-function SeedingState({ message }: { message: string }) {
-  return (
-    <div className="center">
-      <Spinner />
-      <p className="muted">{message}</p>
     </div>
   );
 }

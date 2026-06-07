@@ -123,6 +123,12 @@ html, body {
   max-width: 720px;
   margin: 0 auto;
   padding: 32px 24px 64px;
+  /* Lift above the fixed .cosmos backdrop: cosmos is position:fixed z-index:0, a
+     positioned layer that otherwise paints over this static in-flow content (and
+     its opaque --bg base would hide the welcome / error card). The bars and the
+     graph escape this via their own stacking contexts; main needs its own. */
+  position: relative;
+  z-index: 1;
 }
 
 .center {
@@ -135,6 +141,48 @@ html, body {
 }
 
 .muted { color: var(--muted); margin: 4px 0; }
+
+/* First-run welcome (EmptyState): a deliberate title screen in the void, not a
+   bare line + button. The anchor star breathes like the loading "you" star, so
+   seeding reads as igniting the chart around the same point. */
+.welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+  max-width: 480px;
+  margin: 0 auto;
+  padding-top: 14vh;
+}
+.welcome__star {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0%, #b6bdff 52%, transparent 80%);
+  box-shadow:
+    0 0 18px 4px var(--glow),
+    0 0 48px 11px color-mix(in srgb, var(--accent) 34%, transparent);
+  animation: star-breathe 4.2s ease-in-out infinite;
+  margin-bottom: 10px;
+}
+.welcome__title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-shadow: 0 0 18px var(--glow);
+}
+.welcome__lede {
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.65;
+}
+.welcome__cta { margin-top: 10px; }
+@media (prefers-reduced-motion: reduce) {
+  .welcome__star { animation: none; }
+}
 
 /* Buttons */
 .btn {
@@ -636,4 +684,213 @@ html, body {
   font-size: 20px;
   border-radius: 8px;
   border: 1px solid var(--border);
+}
+
+/* === Seed reveal: loading as the birth of the chart (seed-reveal-plan) =======
+   A full-bleed layer over the cosmic backdrop. The "you" star ignites and
+   breathes at center; dim company stars bloom in a deterministic scatter and
+   sharpen as their logos cache; one line of phase text crossfades at the bottom.
+   On handoff, the whole layer dissolves over the graph's staggered ignition. */
+.loading-chart {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+/* The cross-dissolve (§8): fade to nothing as the real chain ignites beneath. */
+.loading-chart--fading {
+  animation: loading-dissolve 900ms ease forwards;
+}
+@keyframes loading-dissolve {
+  to { opacity: 0; }
+}
+.loading-chart__field {
+  position: absolute;
+  inset: 0;
+}
+
+/* The focal "pull": a broad, soft glow at center that breathes slowly. It gives
+   the void a warm heart to gather around while the company count is still
+   unknown, so the first seconds never read as empty. */
+.loading-chart__core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 64vmin;
+  height: 64vmin;
+  margin: -32vmin 0 0 -32vmin;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--accent) 20%, transparent) 0%,
+    transparent 62%
+  );
+  animation: core-pulse 5.5s ease-in-out infinite;
+}
+@keyframes core-pulse {
+  0%, 100% { opacity: 0.55; transform: scale(0.92); }
+  50% { opacity: 1; transform: scale(1.06); }
+}
+
+/* A star is a glowing white point with a colored corona. The "you" star is the
+   bright anchor at center; company stars warm from indigo to gold as they ignite.
+   The white core stays constant (gradients don't tween); the cool→warm shift
+   rides the box-shadow corona, which does interpolate. */
+.loading-star {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0%, #b6bdff 52%, transparent 80%);
+}
+
+/* You: the anchor of the chart. Dim until the header is read, then ignites and
+   settles into a slow, steady breath that carries the long page-load wait. */
+.loading-star--you {
+  left: 50%;
+  top: 50%;
+  width: 15px;
+  height: 15px;
+  margin: -7.5px 0 0 -7.5px;
+  opacity: 0;
+  box-shadow:
+    0 0 18px 4px var(--glow),
+    0 0 46px 10px color-mix(in srgb, var(--accent) 34%, transparent);
+}
+.loading-star--you.is-ignited {
+  opacity: 1;
+  animation:
+    you-ignite 1200ms cubic-bezier(0.22, 1, 0.36, 1) backwards,
+    star-breathe 4.2s ease-in-out 1200ms infinite;
+}
+@keyframes you-ignite {
+  0% { opacity: 0; transform: scale(0.4); }
+  70% { opacity: 1; transform: scale(1.18); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes star-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.14); }
+}
+
+/* The "working" indicator: a faint orbital ring around the you-star with a
+   single bright point circling it (the whole element rotates; the point is its
+   ::before pinned to the ring's top). On-theme motion that reads as active
+   progress through the opaque page-load wait, without a generic spinner. */
+.loading-chart__orbit {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 60px;
+  height: 60px;
+  margin: -30px 0 0 -30px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--accent) 16%, transparent);
+  pointer-events: none;
+  animation:
+    orbit-spin 2.6s linear infinite,
+    orbit-in 700ms ease backwards;
+}
+.loading-chart__orbit::before {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  margin-left: -2.5px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 9px 2px var(--glow);
+}
+.loading-chart__orbit--done {
+  opacity: 0;
+  transition: opacity 500ms ease;
+}
+@keyframes orbit-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes orbit-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Company stars: the climax. Each is laid out the moment the company list is
+   parsed and runs one `company-arrive` pass: a cool overshoot bloom, a brief
+   dim hold, then an ignition to a warm gold star. Staggered by --i so the field
+   lights up as a sweep. The class declares the final lit state and the keyframe
+   ends there (no `forwards` needed): the star stays glowing after it arrives.
+   Sized well above the background starfield's 1-2px dots so each reads as a
+   distinct arrival, not lost in the void. Keep the timing in sync with
+   COMPANY_STAGGER_MS / COMPANY_ARRIVE_MS in LoadingChart.tsx. */
+.loading-star--company {
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  opacity: 1;
+  box-shadow:
+    0 0 16px 3px color-mix(in srgb, var(--accent) 55%, transparent),
+    0 0 38px 10px rgba(255, 201, 143, 0.5);
+  animation: company-arrive 1800ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: calc(var(--i) * 75ms);
+}
+@keyframes company-arrive {
+  0% { opacity: 0; transform: scale(0.2);
+       box-shadow: 0 0 8px 1px color-mix(in srgb, var(--accent) 40%, transparent); }
+  14% { opacity: 0.6; transform: scale(1.35);
+        box-shadow: 0 0 11px 2px color-mix(in srgb, var(--accent) 45%, transparent); }
+  26% { opacity: 0.5; transform: scale(1);
+        box-shadow: 0 0 10px 1px color-mix(in srgb, var(--accent) 40%, transparent); }
+  /* dim hold: the field sits as cool, unlit points before igniting */
+  52% { opacity: 0.5;
+        box-shadow: 0 0 10px 1px color-mix(in srgb, var(--accent) 40%, transparent); }
+  100% { opacity: 1; transform: scale(1);
+         box-shadow:
+           0 0 16px 3px color-mix(in srgb, var(--accent) 55%, transparent),
+           0 0 38px 10px rgba(255, 201, 143, 0.5); }
+}
+
+/* The dissolve overlay (§8) shows the final, fully-lit field fading out: freeze
+   every entrance animation so nothing re-blooms mid cross-dissolve. The base
+   classes already declare the lit state, so killing the animations is enough. */
+.loading-chart--fading .loading-star--company,
+.loading-chart--fading .loading-chart__core { animation: none; }
+.loading-chart--fading .loading-star--you {
+  animation: none;
+  opacity: 1;
+}
+
+/* Phase text: one quiet line near the bottom, fading in on each phase change. */
+.loading-chart__phase {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 14%;
+  margin: 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  animation: phase-in 600ms ease backwards;
+}
+@keyframes phase-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* Bow out once the stars have taken over the story. */
+.loading-chart__phase--done {
+  opacity: 0;
+  transition: opacity 550ms ease;
+}
+/* The dissolve overlay is just the lit field fading; no text on top of it. */
+.loading-chart--fading .loading-chart__phase { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-chart__core { animation: none; }
+  .loading-chart__orbit { display: none; } /* a spinning indicator has no still form */
+  .loading-star--you.is-ignited { animation: none; opacity: 1; }
+  /* No bloom/ignite sweep: stars simply appear in their final lit state. The
+     climax-done timer in LoadingChart still fires, so the dissolve proceeds. */
+  .loading-star--company { animation: none; }
+  .loading-chart__phase { animation: none; }
+  .loading-chart--fading { animation-duration: 300ms; }
 }

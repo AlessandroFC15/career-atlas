@@ -92,23 +92,47 @@ async function injectFunc<A extends unknown[], R>(
   return result?.result as Awaited<R>;
 }
 
-/** Fetch + cache the avatar and every company logo as data URLs (§8). */
+/**
+ * A structured progress event for the seed reveal (seed-reveal-plan §5). The
+ * phase strings are stable identifiers, not display copy: the human text lives
+ * in the view's PHASE_TEXT map, so wording changes never touch orchestration.
+ * `companyCount` rides along once parsing returns so the view knows how many
+ * dim stars to bloom (never rendered as a number). `logo-cached` fires once per
+ * image as it *settles* (resolved or failed), so a logo-less company still ticks.
+ */
+export type SeedProgress =
+  | { phase: 'opening-profile' }
+  | { phase: 'reading-header' }
+  | { phase: 'opening-experience' }
+  | { phase: 'reading-experience'; companyCount?: number }
+  | { phase: 'caching'; companyCount: number }
+  | { phase: 'logo-cached' };
+
+/**
+ * Fetch + cache the avatar and every company logo as data URLs (§8). Emits one
+ * `onSettle` tick per image as it settles (the avatar first, so the view can
+ * route that one to the "you" star; then each logo). fetchAsDataUrl never
+ * rejects, so every settle reliably ticks even for a missing/free-text logo.
+ */
 async function cacheImages(
   header: ProfileHeader,
   experiences: ExperienceEntry[],
+  onSettle: () => void = () => {},
 ): Promise<{ avatarDataUrl?: string; experiences: ExperienceEntry[] }> {
   const avatarDataUrl = await fetchAsDataUrl(header.avatarUrl);
+  onSettle();
   const withLogos = await Promise.all(
-    experiences.map(async (e) => ({
-      ...e,
-      logoDataUrl: await fetchAsDataUrl(e.logoUrl),
-    })),
+    experiences.map(async (e) => {
+      const logoDataUrl = await fetchAsDataUrl(e.logoUrl);
+      onSettle();
+      return { ...e, logoDataUrl };
+    }),
   );
   return { avatarDataUrl, experiences: withLogos };
 }
 
 export interface SeedRunHooks {
-  onProgress?: (message: string) => void;
+  onProgress?: (progress: SeedProgress) => void;
 }
 
 /**
@@ -127,7 +151,7 @@ export async function runSeed(hooks: SeedRunHooks = {}): Promise<Seed> {
     // period for their src to populate before reading (see parser.ts). The error
     // paths below bring this tab to the front only when the user needs to act
     // (log in / inspect a failure).
-    progress('Opening your LinkedIn profile…');
+    progress({ phase: 'opening-profile' });
     const tab = await chrome.tabs.create({ url: ME_URL, active: false });
     workerTabId = tab.id;
     if (workerTabId === undefined) {
@@ -146,7 +170,7 @@ export async function runSeed(hooks: SeedRunHooks = {}): Promise<Seed> {
     const profileUrl = canonicalProfileUrl(loaded.url || ME_URL);
 
     // 3. Read name + avatar URL from the top card.
-    progress('Reading your name and photo…');
+    progress({ phase: 'reading-header' });
     const header = await injectFunc(workerTabId, injectedReadProfileHeader, [15000]);
     if (!header || !header.name) {
       throw new SeedError(
@@ -157,14 +181,14 @@ export async function runSeed(hooks: SeedRunHooks = {}): Promise<Seed> {
     }
 
     // 4. Navigate to the full experience list.
-    progress('Opening your full experience list…');
+    progress({ phase: 'opening-experience' });
     await chrome.tabs.update(workerTabId, {
       url: profileUrl + 'details/experience/',
     });
     await waitForLoad(workerTabId, { urlIncludes: 'details/experience' });
 
     // 5. Inject the parser (polls for the list, then returns entries).
-    progress('Reading your experience…');
+    progress({ phase: 'reading-experience' });
     const experiences = await injectFunc(workerTabId, injectedScrapeExperience, [15000]);
     if (!Array.isArray(experiences)) {
       throw new SeedError(
@@ -176,12 +200,15 @@ export async function runSeed(hooks: SeedRunHooks = {}): Promise<Seed> {
     if (experiences.length === 0) {
       throw new SeedError('EMPTY', 'No experience found on your profile.', workerTabId);
     }
+    // Count is real now: bloom the scatter while still on the reading beat.
+    progress({ phase: 'reading-experience', companyCount: experiences.length });
 
-    // 6. Fetch + cache images in the home page.
-    progress('Caching photos and logos…');
+    // 6. Fetch + cache images in the home page, ticking once per settled image.
+    progress({ phase: 'caching', companyCount: experiences.length });
     const { avatarDataUrl, experiences: withLogos } = await cacheImages(
       header,
       experiences,
+      () => progress({ phase: 'logo-cached' }),
     );
 
     // 7. Assemble + persist.
