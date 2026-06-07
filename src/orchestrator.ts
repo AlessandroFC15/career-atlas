@@ -251,12 +251,8 @@ export async function runSeed(hooks: SeedRunHooks = {}): Promise<Seed> {
 
 // === M2: expand one company into its first page of people (m2-plan §8) ======
 
-/** Mirrors SeedErrorCode. EMPTY = no first-degree connections found. */
-export type ExpandErrorCode =
-  | 'LOGGED_OUT'
-  | 'PARSE_NOT_READY'
-  | 'EMPTY'
-  | 'GENERIC';
+/** Same code set as the seed flow; here EMPTY = no first-degree connections. */
+export type ExpandErrorCode = SeedErrorCode;
 
 export class ExpandError extends Error {
   constructor(
