@@ -28,53 +28,47 @@ Same data, now rendered as an actual graph: your companies as a **horizontal car
 
 ## M2 — Expand a company into its people ✅
 
-*Status: shipped (commit `1fcd75f`). Detailed plan in `m2-plan.md`.* Click a Level 0 node and **drill into that company's galaxy** (the chain fades, the camera flies into the focused star). The worker tab loads a **first-degree people search keyed on the company name** (`network=["F"]`, one query instead of a current/past company facet), captures the **first page** (~10), and plots those people as raw **Level 1 nodes** in a horizontal row below the company (names on hover). Not overlap-verified yet, just the initial list. A back affordance (and Esc) returns to the atlas.
+*Status: shipped (commit `1fcd75f`). Detailed plan in `m2-plan.md`.* Click a Level 0 node and **drill into that company's galaxy** (the chain fades, the camera flies into the focused star). The worker tab loads a **first-degree people search keyed on the company name** (`network=["F"]`, one query instead of a current/past company facet), captures the **first page** (~10), and plots those people as raw **Level 1 nodes** in a horizontal row below the company (names on hover). Not confirmed yet, just the initial candidate list. A back affordance (and Esc) returns to the atlas.
 
 **Proves:** the people-search parser, the drill-in galaxy navigation, and the one-page-per-click expansion model (plus the graph store now holding non-derivable expansion data).
 
 ---
 
-## M3 — Verify overlap (prune to people you actually worked with) ⬅ next
+## M3 — Trace where a colleague went ⬅ next
 
-For each connection from M2, the worker tab visits their profile one at a time, parses their dated tenure, and checks whether it overlaps yours at that company. Overlaps stay as verified Level 1 nodes; non-overlaps (and missing-date cases) get pruned. The graph updates **person by person, live**.
+*Detailed plan in `m3-plan.md`.* From an expanded galaxy (M2), **you click the people you actually worked with**, one at a time. Each click visits that one person's profile, parses their dated tenure (reusing the seed experience parser), anchors on the shared company, and plots the stints they took **after they left** it as **Level 2 leaf nodes** (never expandable). The clicked orb **animates out of the candidate cluster into its own swimlane**, where their onward stints sit on a **continuous real-time axis**. When two colleagues landed at the same place, a **convergence accent** (shared glow + connecting thread) links the stars at their true dates. A profile that doesn't list the company at all is a keyword false positive: the orb returns to the cluster, dimmed.
 
-**Proves:** the profile sweep loop and the overlap date-interval logic.
+This **replaces** the originally-planned auto-overlap-prune M3 *and* absorbs the old "onward workplaces" M4. **You** are the verifier now (clicking confirms the relationship), so the speculative bulk profile sweep and the overlap date-interval logic are cut.
 
----
-
-## M4 — Onward workplaces (the full two-level graph)
-
-For each verified colleague, plot where they went next as **Level 2 leaf nodes** (never expandable). When two colleagues landed at the same place, dedup collapses them onto one shared leaf.
-
-**Proves:** the complete graph answering its one question, plus deduplication. This is the first "it works end to end" state.
+**Proves:** the per-person trace (one profile load per click), the anchor + onward-cut logic, the swimlane time-axis layout, and convergence. This is the first "it works end to end" state.
 
 ---
 
-## M5 — Human-shaped guardrails
+## M4 — Human-shaped guardrails
 
 Randomized reading-time pacing between profile visits, a session fetch budget that pauses and tells you when hit, halt-on-challenge detection (captcha/checkpoint) with a Resume affordance, and a visible Stop button.
 
-**Proves:** the traffic discipline that makes the sweep safe to run at real scale.
+**Proves:** the traffic discipline that makes per-click tracing safe to run at real scale.
 
 ---
 
-## M6 — Load more and exhaustion
+## M5 — Load more and exhaustion
 
-The company node shows progress ("23 of 23 loaded ✓"), a **load-more** control fetches and sweeps the next page, and the terminal state is shown clearly. No silent stops, no infinite spinner.
+The company node shows progress ("23 of 23 loaded ✓"), a **load-more** control fetches the next page of people, and the terminal state is shown clearly. No silent stops, no infinite spinner.
 
 **Proves:** user-driven depth control.
 
 ---
 
-## M7 — Polish and robustness
+## M6 — Polish and robustness
 
-Fallback paste-your-profile-URL seed when auto-detection fails, distinct styling for verified vs. pruned vs. leaf nodes, empty/error states, and confirming that re-opening an explored company never re-fetches.
+Fallback paste-your-profile-URL seed when auto-detection fails, distinct styling for raw vs. traced vs. dismissed vs. leaf nodes, empty/error states, and confirming that re-opening an explored company or colleague never re-fetches.
 
 ---
 
 ## Open decisions carried into implementation
 
-1. **Guardrails timing.** M3 and M4 do real sequential profile fetches against LinkedIn before M5 exists. Either fold *minimal* pacing into M3, or test M3/M4 against only a handful of profiles until M5 lands.
-2. **M5 vs. M6 order.** Safety (M5) is placed before load-more (M6) deliberately, since load-more multiplies fetch volume. Flipping them increases exposure.
+1. **Guardrails timing.** M3 does real profile fetches against LinkedIn before M4 (guardrails) exists. Because tracing is now **manual and one-fetch-per-click** (not a bulk sweep), the pre-guardrails exposure is far lower than the original auto-sweep M3 would have been; test M3 against a handful of profiles until M4 lands.
+2. **M4 vs. M5 order.** Safety (M4) is placed before load-more (M5) deliberately, since load-more multiplies the number of people available to trace. Flipping them increases exposure.
 </content>
 </invoke>

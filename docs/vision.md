@@ -10,16 +10,18 @@ A visual tool for exploring where former colleagues have gone in their careers, 
 
 The graph is **two levels deep, rooted in your own career**. It does not unfold outward indefinitely.
 - **Level 0 (seed):** your own companies. These are the **only expandable nodes**, a small fixed set drawn from your own history.
-- **Level 1:** the **first-degree connections** who worked at a company you expand, kept only if their tenure **overlapped with your own** there, so the people shown are ones you actually worked with, not just anyone who passed through. Non-overlaps are pruned.
+- **Level 1:** the **first-degree connections** who surface for a company you expand. **You confirm who you actually worked with by clicking them** (decided in M3, supersedes the earlier auto-overlap framing): clicking a person both confirms the relationship and traces their onward path. People you don't click stay as unconfirmed candidates; a click whose profile doesn't even list the company is dismissed as a search false positive.
 - **Level 2:** the **workplaces those colleagues moved to afterward**. These are **terminal leaves**, plotted for insight but never expandable.
 
-There is no person-expansion action and no outward unfolding. The graph answers exactly one question: for each place I worked, who did I overlap with, and where did each of them go next? See `journey.md` for the full step-by-step behavior.
+The graph answers exactly one question: for each place I worked, who did I work with, and where did each of them go next? See `journey.md` for the full step-by-step behavior.
 
 **Visual arrangement (decided in M1, supersedes earlier "rooted, you at the center" framing).** The seed renders as a horizontal **career chain**: your companies in chronological order, each linked to the next (`first → next → …`), not as a fan radiating from a central "you" node. You appear in a **header bar**, not as a graph node. A company you worked at in two separate stints appears as **two chain nodes** at its two points in time, rather than one deduped node (see the deduplication note in `journey.md`). The two-level rooted model above is unchanged; this only fixes how Level 0 is laid out.
 
 The intended feel is still **exploration, not a one-shot dump**: the graph grows where the user deliberately clicks, one company at a time, rather than materializing all at once.
 
-**Navigation (decided in M2, supersedes the "one graph, all levels visible" framing).** The two levels are not all shown on one canvas. The product has two views: an **atlas** (the career chain above, Level 0) and, per company, a **galaxy** you **drill into** by clicking a company star. Inside a galaxy you see only that one company as the major star, its overlapping people (Level 1) below it, and later where those people went (Level 2). A back affordance returns you to the atlas. You explore one company's subtree at a time. One consequence, accepted: cross-company convergence (a colleague from company A and one from company B both ending up at the same place) is not visible, since you never see two companies' people at once. The two-level rooted model is otherwise unchanged; this fixes how levels 1 and 2 are presented. See `m2-plan.md`.
+**Navigation (decided in M2, supersedes the "one graph, all levels visible" framing).** The two levels are not all shown on one canvas. The product has two views: an **atlas** (the career chain above, Level 0) and, per company, a **galaxy** you **drill into** by clicking a company star. Inside a galaxy you see only that one company as the major star, its people (Level 1) as a cluster below it, and, for the colleagues you click, where each went next (Level 2). A back affordance returns you to the atlas. You explore one company's subtree at a time. One consequence, accepted: cross-company convergence (a colleague from company A and one from company B both ending up at the same place) is not visible, since you never see two companies' people at once. The two-level rooted model is otherwise unchanged; this fixes how levels 1 and 2 are presented. See `m2-plan.md`.
+
+**Onward layout & convergence (decided in M3).** A colleague you click is pulled into their own **swimlane** below the cluster; their onward workplaces sit on a **continuous real-time axis** (left = earlier), so each person's timeline is read honestly. When two colleagues landed at the same place, the stars stay at their true dates and share a **convergence accent** (glow + a faint connecting thread) rather than being merged into one node, which preserves both the convergence insight and each individual timeline. See `m3-plan.md`.
 
 ---
 
@@ -32,7 +34,7 @@ The distinction that matters is **not** "who writes the code" or "is the browser
 - **Machine-shaped**: many requests in a loop, evenly paced, no reading time, navigation firing on its own. Flagged as automation regardless of where it runs. High risk.
 
 Two consequences we accepted:
-- **Unbounded multi-hop crawling is off the table.** Full auto-expansion that hops from company to company is inherently high-volume, and no pacing trick makes hundreds of automated fetches look human. The recursion *is* the volume. One **bounded exception** is accepted: when the user clicks one of their **own** companies, the extension auto-sweeps that single company's first-page connections (visiting each profile to compute overlap), paced and capped. Because the onward companies this surfaces are non-expandable leaves (see §1), this never cascades into multi-hop crawling; total volume is bounded by the user's own career size. The guardrails (first-page cap, randomized human pacing, session fetch budget, halt-on-challenge) are detailed in `journey.md`.
+- **Unbounded multi-hop crawling is off the table.** Full auto-expansion that hops from company to company is inherently high-volume, and no pacing trick makes hundreds of automated fetches look human. The recursion *is* the volume. Every page load stays tied to a deliberate user action: clicking your **own** company loads one people-search page (M2), and clicking a **person** loads one profile to trace where they went (M3, supersedes the earlier "auto-sweep every connection" framing). There is no bulk sweep: only the colleagues you click are fetched, one at a time. Because onward companies are non-expandable leaves (see §1), this never cascades into multi-hop crawling; total volume is bounded by your own career size and how many people you choose to trace. The guardrails (randomized human pacing, session fetch budget, halt-on-challenge) are detailed in `journey.md`.
 - **Scope is personal use, not a multi-user product.** A product where many people sign in and the system pulls their connections re-introduces scale, third-party (non-consenting) data processing, and GDPR exposure. The current design targets a single user exploring their own network.
 
 These are decisions, not open questions. If the goal ever shifts to a shippable product, this section has to be revisited first, because it changes everything downstream.
@@ -51,12 +53,10 @@ Seeds the graph, and read the same human-shaped way as everything else: from you
 There is no data export or manual file-upload step. This pull uses the identical parsing path as #2 and #3, just pointed at your own profile.
 
 **Pull #2 — first-degree connections who worked at a given company.**
-No official API or export provides this. It is only available by reading a logged-in LinkedIn page. **Mechanism (decided in M2, supersedes the "company People view" framing):** a single **first-degree people search** keyed on the company name (`/search/results/people/?keywords=<company>&network=["F"]`), rather than the company People tab (which would need a separate current-company and past-company fetch). One query, leaning on LinkedIn's relevance ranking. Confirmed against a live page: results filter cleanly to first-degree and parse into structured records (name, headline, location, profile link, photo). The keyword can over-match (people who never actually worked there), which is **fine because the overlap check in Pull #3 prunes exactly those**.
+No official API or export provides this. It is only available by reading a logged-in LinkedIn page. **Mechanism (decided in M2, supersedes the "company People view" framing):** a single **first-degree people search** keyed on the company name (`/search/results/people/?keywords=<company>&network=["F"]`), rather than the company People tab (which would need a separate current-company and past-company fetch). One query, leaning on LinkedIn's relevance ranking. Confirmed against a live page: results filter cleanly to first-degree and parse into structured records (name, headline, location, profile link, photo). The keyword can over-match (people who never actually worked there), which is **fine because you only click the people you recognize**, and a click whose profile doesn't list the company is dismissed (Pull #3).
 
 **Pull #3 — a person's full dated work history.**
-Also has no API. Only available on the individual's profile page. Feasibility confirmed: the experience section parses cleanly, including the start/end dates needed for overlap matching.
-
-**Overlap matching** is then a simple date-interval check between your tenure and theirs at a shared company. The accuracy of "people you actually worked with" depends entirely on having pull #3's dates, so every overlap decision requires visiting the person's profile.
+Also has no API. Only available on the individual's profile page, and read **only for the colleagues you click** (M3). Feasibility confirmed: the experience section parses cleanly (the seed parser is reused), including the start/end dates. The dates are used to **anchor** on the shared company (find their stint there) and to plot the stints they took **after they left** it on the galaxy time axis. A profile with no stint at the company is a search false positive and is dismissed.
 
 **Approaches considered and rejected:**
 - **Self-hosted backend crawler** (authenticated with a session cookie): fully automatic, but machine-shaped and puts the account at real risk. Rejected on the human-shaped constraint.
@@ -86,7 +86,7 @@ The graph (nodes, edges, captured history) is stored locally so it survives acro
 The page extraction is plain, deterministic parsing and needs no AI. Claude's potential role is the *fuzzy* work, called as an ordinary API request only when needed:
 - entity resolution (is this the same person across two pages?),
 - company-name normalization (collapsing variant spellings into one node),
-- judgment calls on ambiguous overlaps.
+- judgment calls on ambiguous company-name matches (anchoring a colleague's stint to the shared company when URN/name are fuzzy).
 This keeps a clean split: the browser does deterministic capture; Claude is an optional helper for the judgment layer.
 
 ---

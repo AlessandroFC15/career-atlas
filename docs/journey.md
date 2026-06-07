@@ -11,15 +11,15 @@ This doc assumes the decisions in `vision.md`, and in three places it **supersed
 The graph is **two levels deep, rooted in your own career**. It does not unfold outward indefinitely.
 
 ```
-LEVEL 0 (seed)        LEVEL 1 (swept + verified)      LEVEL 2 (leaves)
-your companies   ──▶  colleagues you overlapped   ──▶ where each went next
-[EXPANDABLE]          with at that company             [NOT expandable]
-                      (non-overlaps pruned)
+LEVEL 0 (seed)        LEVEL 1 (you confirm)          LEVEL 2 (leaves)
+your companies   ──▶  colleagues you click as    ──▶  where each went next
+[EXPANDABLE]          people you worked with            [NOT expandable]
+                      (unclicked stay candidates)
 ```
 
-The graph answers exactly one question: *for each place I worked, who did I overlap with, and where did each of them go next?*
+The graph answers exactly one question: *for each place I worked, who did I work with, and where did each of them go next?*
 
-The single most important rule, because everything downstream depends on it: **only your own companies are expandable.** Onward companies (level 2) are plotted for insight but can never be clicked open. There is no multi-hop crawl. Total page loads over the product's entire life are bounded by your career size (your companies, times the connections on each company's first page), which is what keeps the whole thing defensible against LinkedIn's automation defenses.
+The single most important rule, because everything downstream depends on it: **only your own companies are expandable**, and **only the people you click are traced.** Onward companies (level 2) are plotted for insight but can never be clicked open. There is no multi-hop crawl and no bulk sweep. Total page loads over the product's entire life are bounded by your career size (your companies, times the people you deliberately choose to trace), which is what keeps the whole thing defensible against LinkedIn's automation defenses.
 
 ---
 
@@ -39,43 +39,43 @@ The user clicks **"Seed my graph."**
 - **Source (fallback):** if auto-detection fails, the seed screen asks the user to paste their own logged-in profile URL, and the same parse runs against it.
 - **What is read:** the experience section of your own profile, parsed into your list of companies and your dated tenure at each. This is the identical parsing path used later for connections; the seed is not a special export or file upload.
 
-**Result:** your own companies appear as **Level 0 nodes, dormant.** Nothing is swept yet. The graph waits for you.
+**Result:** your own companies appear as **Level 0 nodes, dormant.** Nothing is traced yet. The graph waits for you.
 
 ---
 
-## 3. The core loop: expand one of your companies
+## 3. The core loop: expand a company, then trace the people you worked with
 
-This is the only interactive action in the product, and it is available **only on your own companies.** Clicking a Level 0 node runs the following, with the worker tab visible the whole time.
+There are two interactive actions, both deliberate clicks, with the worker tab driven only when a click needs a page.
 
-### 3a. Load the company's people
-**(Source mechanism decided in M2.)** The extension navigates the worker tab to a **first-degree people search keyed on the company name** (`/search/results/people/?keywords=<company>&network=["F"]`), not the company's People tab. One query covers both current and past employees, relying on LinkedIn's relevance ranking. It captures the **first page** of connections (name, headline, location, profile link, photo). One page load, triggered by your one click. The search can surface people who never actually worked there; that over-matching is pruned by the overlap check in 3b.
+### 3a. Expand one of your companies (load its people)
+Available **only on your own companies.** **(Source mechanism decided in M2.)** The extension navigates the worker tab to a **first-degree people search keyed on the company name** (`/search/results/people/?keywords=<company>&network=["F"]`), not the company's People tab. One query covers both current and past employees, relying on LinkedIn's relevance ranking. It captures the **first page** of connections (name, headline, location, profile link, photo). One page load, triggered by your one click. The search can surface people who never actually worked there; that over-matching is handled in 3b (you simply don't click them, or a click is dismissed).
 
-**(Navigation decided in M2.)** Clicking the company star does not append people to the chain in place: it **drills into that company's galaxy**, a view showing only that company as the major star with its people below. A back affordance (and Esc) returns to the atlas. See `m2-plan.md`.
+**(Navigation decided in M2.)** Clicking the company star does not append people to the chain in place: it **drills into that company's galaxy**, a view showing only that company as the major star with its people as a cluster below. A back affordance (and Esc) returns to the atlas. See `m2-plan.md`.
 
-### 3b. Auto-sweep each connection's profile
-Overlap cannot be known from the People page; it requires each person's dated tenure, which lives only on their profile. So the extension visits each first-page connection's profile **one at a time, at a human pace**, and for each:
+### 3b. Trace a colleague you click *(decided in M3, supersedes the auto-sweep + overlap framing)*
+There is **no automatic sweep and no overlap computation.** **You** are the verifier: you click the people you remember working with, one at a time. For each click, the extension visits that **one** profile (a single page load, human-shaped by construction), and:
 
-1. Parses their dated experience.
-2. Computes **overlap**: does their tenure at *this* company intersect *your* tenure there (a simple date-interval check)?
-3. **If overlap:** the person becomes a verified Level 1 node, and their onward workplaces become Level 2 leaf nodes.
-4. **If no overlap (or dates missing/unverifiable):** the person is **pruned.** They were not someone you worked with, so they do not belong in the graph, and their onward companies are not plotted.
+1. Parses their dated experience (reusing the seed experience parser).
+2. **Anchors** on the shared company: finds their stint at *this* company (by company URN, else normalized name).
+3. **If found:** the person is confirmed; their stints **after they left** that company become Level 2 leaf nodes. The orb is pulled out of the candidate cluster into its own **swimlane**, where the onward stints sit on a continuous real-time axis. A colleague still there (or with nothing after) becomes a terminal lane (a lone face, no leaves).
+4. **If the company isn't in their history:** it was a search false positive. The orb returns to the cluster **dimmed** ("didn't work here"), recoverable, and nothing is plotted.
 
-The graph **updates live, person by person.** It does not wait for the whole sweep to finish; each verified colleague and their destinations appear as they are confirmed.
+Only the people you click are ever fetched. Unclicked people stay as candidates indefinitely. Re-clicking an already-traced colleague never re-fetches.
 
-### 3c. Guardrails on the sweep
-The sweep is the one place the design does automated sequential fetching, so it is bounded deliberately:
+### 3c. Guardrails on per-click tracing
+Each trace is a single user-triggered profile load, so traffic is human-shaped *by construction*. The deliberate bounds (detailed in the guardrails milestone):
 
-- **First-page cap.** The sweep covers only the first People page by default. Going deeper is a separate, deliberate action (see 3d).
-- **Randomized human pacing.** Variable, reading-time-like delays between profile visits, never fixed or fast intervals.
-- **Session fetch budget.** A hard ceiling on total profile fetches per session. When hit, the sweep pauses and tells the user rather than pushing on.
-- *(Optional, recommended)* a visible **Stop** affordance so the user can halt a sweep mid-run. Not required, but cheap insurance; included here as a recommendation.
+- **Randomized human pacing.** Variable, reading-time-like delays around the fetches, never fixed or fast intervals.
+- **Session fetch budget.** A hard ceiling on total profile fetches per session. When hit, tracing pauses and tells the user rather than pushing on.
+- **Halt-on-challenge.** A captcha/checkpoint halts immediately and surfaces the worker tab (see Cross-cutting).
+- *(Optional, recommended)* a visible **Stop** affordance. Cheap insurance; included as a recommendation.
 
 ### 3d. Exhaustion and "load more"
-The user must always know when a company has nothing left to load. The company node reflects this concretely:
+The user must always know when a company has no more *people* to surface. The company node reflects this concretely:
 
-- LinkedIn's People view exposes a result count, so the node shows progress like **"23 of 23 loaded ✓"** and the load-more control disappears at the end.
+- LinkedIn's people search exposes a result count, so the node shows progress like **"23 of 23 loaded ✓"** and the load-more control disappears at the end.
 - Where no count is exposed, the terminal state is "the next page returned no new connections."
-- A **"load more"** control fetches the next page of connections (then sweeps those too). Each click is one more page: depth stays user-driven, one page per deliberate action.
+- A **"load more"** control fetches the next page of connections (which you can then trace by clicking, as in 3b). Each click is one more page: depth stays user-driven, one page per deliberate action.
 
 No silent stopping, no infinite spinner.
 
@@ -85,7 +85,7 @@ No silent stopping, no infinite spinner.
 
 The user returns to the graph and clicks the next of **their own** companies. The same loop runs. The set of expandable nodes never grows: it is fixed at seed time to the companies you actually worked at.
 
-A useful emergent behavior: when two different colleagues both land at the same onward company, dedup (see below) collapses them onto **one shared Level 2 leaf**, so the graph visibly shows convergence ("two people I worked with both ended up at Z"). **(Scoped in M2.)** Because you view one company's galaxy at a time, this convergence is only ever shown **within a single company's galaxy** (two colleagues from the *same* company landing at the same place). Cross-company convergence (colleagues from two *different* of your companies converging) is not surfaced in the drill-in model; a future atlas-wide view could restore it.
+A useful emergent behavior: when two different colleagues both land at the same onward company, the graph visibly shows convergence ("two people I worked with both ended up at Z"). **(Layout decided in M3.)** Rather than merging them onto one node, the two stars stay at their **true dates** in their own swimlanes and share a **convergence accent** (glow + a faint connecting thread), so the insight and each individual timeline both survive. **(Scoped in M2.)** Because you view one company's galaxy at a time, this convergence is only ever shown **within a single company's galaxy** (two colleagues from the *same* company landing at the same place). Cross-company convergence (colleagues from two *different* of your companies converging) is not surfaced in the drill-in model; a future atlas-wide view could restore it.
 
 ---
 
@@ -93,27 +93,27 @@ A useful emergent behavior: when two different colleagues both land at the same 
 
 There is no global auto-complete, by design (auto-completing would mean auto-expanding, which is the crawl we ruled out).
 
-- A **company is complete** when all its first-page connections (plus any pages the user loaded) have been swept and the exhaustion state is shown.
+- A **company is complete** when its people are fully loaded (the exhaustion state is shown) and the user has traced whichever colleagues they care to. Tracing is opt-in per person, so "complete" here means the user is done clicking, not that every candidate was fetched.
 - The **graph is complete** when the user has expanded all of their own companies and chooses to stop. Completion is user-defined, because the expandable set is finite and fully under the user's control.
 
 ---
 
 ## Cross-cutting handling
 
-### Hitting LinkedIn's defenses mid-sweep
-If a checkpoint, captcha, or rate-limit interstitial appears during a sweep, the extension:
+### Hitting LinkedIn's defenses mid-trace
+If a checkpoint, captcha, or rate-limit interstitial appears while loading a page, the extension:
 
 1. **Detects** it (challenge URL / DOM markers).
-2. **Halts** the sweep immediately. No further automated requests.
-3. **Surfaces** the worker tab to the user: "LinkedIn needs you to verify. Solve it, then Resume."
-4. **Resumes** from where it left off only after the user resolves it.
+2. **Halts** immediately. No further automated requests.
+3. **Surfaces** the worker tab to the user: "LinkedIn needs you to verify. Solve it, then try again."
+4. **Resumes** only after the user resolves it (the next click proceeds normally).
 
 It never auto-retries through a challenge. Continuing automated traffic right after a flag is the worst possible signal, so the design refuses to.
 
 ### Deduplication
 Same entity, one node, computed deterministically:
 
-- **Company key:** LinkedIn's company entity ID (URN) where present, falling back to a normalized name (lowercased, with suffixes like Inc/Ltd/GmbH and punctuation stripped). So "Acme Inc." and "acme" collapse to one node. This applies to **onward (Level 2) companies**, where convergence ("two colleagues both ended up at Z") is the point.
+- **Company key:** LinkedIn's company entity ID (URN) where present, falling back to a normalized name (lowercased, with suffixes like Inc/Ltd/GmbH and punctuation stripped). So "Acme Inc." and "acme" collapse to one identity. For **onward (Level 2) companies** this is the **accent key** (M3): stars sharing a key across two lanes get the convergence glow + thread, rather than being merged into one node.
 - **Seed-chain exception (decided in M1).** Your **own** companies are **not** deduped: a company you worked at in two separate stints renders as **two chain nodes** at its two points in time. Deduping them would fold the chronological timeline back on itself. The company-key above is therefore a Level 2 concern, not a seed concern.
 - **Person key:** profile URL / URN.
 - **No Claude in v1.** The fuzzy judgment layer stays optional and deferred (consistent with `vision.md` §4). It can be added later only if deterministic matching proves insufficient.
@@ -122,7 +122,7 @@ Same entity, one node, computed deterministically:
 The worker tab is **visible by default.** A hidden/background tab is tempting for UX but adds risk on two fronts: it is directly observable (`document.visibilityState === 'hidden'`), and background throttling can break LinkedIn's lazy-loaded, virtualized lists and yield incomplete parses. Hidden mode is **deferred pending real-world verification** of whether it materially affects detection; if pursued, it would be reserved for the lowest-risk single load (your own seed) only.
 
 ### Persistence
-The graph (nodes, edges, captured tenure, overlap verdicts, exhaustion state) is stored locally. Re-opening a company already explored does not trigger a re-fetch; the stored result is shown.
+The graph (nodes, edges, captured people, traced onward trajectories, per-person status, exhaustion state) is stored locally. Re-opening a company already explored, or re-clicking a colleague already traced, does not trigger a re-fetch; the stored result is shown.
 
 ---
 
@@ -132,7 +132,7 @@ This journey design overrides the vision doc in three places. These edits should
 
 1. **§1 (Concept).** The "graph unfolds outward from there / from a person you can expand into the workplaces they moved to" language is **replaced** by the two-level model: only your own companies expand; onward workplaces are terminal leaves. There is no person-expansion action and no outward unfolding.
 
-2. **§2 (Guiding Constraint).** "Automatic recursive crawling is off the table" is **reframed**: a bounded, paced **auto-sweep of one clicked own-company's first-page connections** is an accepted risk. Because onward companies are non-expandable leaves, this is not multi-hop recursion at all; total volume is capped by career size. Unbounded multi-hop crawling remains off the table (and is now structurally impossible).
+2. **§2 (Guiding Constraint).** "Automatic recursive crawling is off the table" is **reframed**: every page load stays tied to a deliberate click (one people-search per company, one profile per traced person), with no bulk sweep (M3, supersedes the earlier auto-sweep framing). Because onward companies are non-expandable leaves, this is not multi-hop recursion at all; total volume is capped by career size and how many people you choose to trace. Unbounded multi-hop crawling remains off the table (and is now structurally impossible).
 
 3. **Open Questions §89** ("how far should onward expansion go") is **resolved**: zero hops. Onward workplaces are leaves and are never expanded.
 
@@ -140,7 +140,7 @@ This journey design overrides the vision doc in three places. These edits should
 
 ## Still open
 
-- Exact visual treatment of pruned vs. verified vs. leaf nodes (styling, not behavior).
+- Exact visual treatment of raw vs. traced vs. dismissed vs. leaf nodes (styling, not behavior).
 - The specific numbers for the session fetch budget and the pacing jitter window (needs real-world tuning).
 - Whether to ship the optional Stop affordance in v1.
 - Confirmation that hidden-tab mode is safe enough to ever offer (research task).
