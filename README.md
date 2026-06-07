@@ -1,15 +1,15 @@
 # Career Atlas
 
 Chrome (MV3) extension that maps who you overlapped with in your career and where
-each of them went next, rooted in your own LinkedIn history. See `vision.md`,
-`journey.md`, and `milestones/`.
+each of them went next, rooted in your own LinkedIn history. See `docs/vision.md`,
+`docs/journey.md`, and `docs/milestones/`.
 
 ## Status: M0 — Seed and show
 
 Click the toolbar icon → a home tab opens → **Seed my graph** drives a visible
 worker tab over your own profile, parses your experience, and shows your name and
 a chronological list of every company you worked at (logo + tenure). No graph yet.
-See `milestones/m0-plan.md` for the full design.
+See `docs/milestones/m0-plan.md` for the full design.
 
 ## Develop
 

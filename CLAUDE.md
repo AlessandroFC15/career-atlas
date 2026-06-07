@@ -1,6 +1,6 @@
 # Career Atlas
 
-A Chrome extension (MV3) that builds and explores your career graph from your own LinkedIn history. TypeScript + Vite (CRXJS), React 18, React Flow (`@xyflow/react`) for the graph. Milestone plans live in `milestones/`.
+A Chrome extension (MV3) that builds and explores your career graph from your own LinkedIn history. TypeScript + Vite (CRXJS), React 18, React Flow (`@xyflow/react`) for the graph. Design docs live in `docs/`: milestone plans in `docs/milestones/`, focused feature plans in `docs/plans/`.
 
 ## Visual direction: cosmic / star chart
 
