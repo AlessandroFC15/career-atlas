@@ -1,17 +1,27 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AXIS_LEFT,
+  AXIS_WIDTH,
+  BAND_TOP,
   COL_GAP,
   GALAXY_DROP,
   GALAXY_PERSON_GAP,
+  LANE_GAP,
   deriveGraph,
+  deriveOnward,
   layout,
   layoutGalaxyFocus,
   layoutGalaxyPerson,
+  layoutSwimlanes,
   personNodesFromRecords,
+  swimlaneX,
 } from '../src/graph';
 import type {
   DateParts,
   ExperienceEntry,
+  GraphNode,
+  OnwardStint,
+  PersonNode,
   PersonRecord,
   Seed,
 } from '../src/types';
@@ -199,5 +209,254 @@ describe('personNodesFromRecords', () => {
     expect(nodes[0].photoUrl).toBe('https://media.licdn.com/grace.jpg');
     // Photo bytes are fetched later by the orchestrator, not here.
     expect(nodes[0].photoDataUrl).toBeUndefined();
+    // M3 regression: fresh people carry no onward trajectory until traced.
+    expect(nodes.every((n) => n.onward === undefined)).toBe(true);
+  });
+});
+
+// --- M3: deriveOnward + swimlane layout ---
+
+function company(
+  name: string,
+  start: DateParts,
+  opts: Partial<GraphNode> = {},
+): GraphNode {
+  return {
+    id: opts.id ?? 'c0',
+    kind: 'company',
+    level: 0,
+    order: opts.order ?? 0,
+    name,
+    companyUrl: opts.companyUrl,
+    companyUrn: opts.companyUrn,
+    logoDataUrl: opts.logoDataUrl,
+    start,
+    end: opts.end ?? null,
+    rawDateText: opts.rawDateText ?? '',
+    roleCount: opts.roleCount ?? 1,
+  };
+}
+
+describe('deriveOnward', () => {
+  it('anchors on the shared company by URN and returns later stints', () => {
+    const focus = company('Escale', { year: 2017 }, { companyUrn: 'urn:escale' });
+    const { matched, onward } = deriveOnward(focus, [
+      entry('Escale', { year: 2017 }, { year: 2020 }, { companyUrn: 'urn:escale' }),
+      entry('Nubank', { year: 2020, month: 3 }, null, { companyUrn: 'urn:nubank' }),
+    ]);
+    expect(matched).toBe(true);
+    expect(onward.map((o) => o.companyName)).toEqual(['Nubank']);
+  });
+
+  it('falls back to normalized name when a URN is missing on either side', () => {
+    // Styling drift + no URN on the colleague side: match on name regardless.
+    const focus = company('Escale', { year: 2017 }, { companyUrn: 'urn:escale' });
+    const { matched, onward } = deriveOnward(focus, [
+      entry('  ESCALE · Full-time ', { year: 2017 }, { year: 2019 }),
+      entry('Loft', { year: 2019, month: 6 }, null),
+    ]);
+    expect(matched).toBe(true);
+    expect(onward.map((o) => o.companyName)).toEqual(['Loft']);
+  });
+
+  it('anchors a boomerang on the EARLIEST matching stint', () => {
+    // Colleague worked at Acme twice; the earliest end (2017) is the cut point,
+    // so Detour (2017) and everything later counts; the second Acme stint is
+    // excluded as the shared company itself.
+    const focus = company('Acme', { year: 2015 }, { companyUrn: 'urn:acme' });
+    const { matched, onward } = deriveOnward(focus, [
+      entry('Acme', { year: 2015 }, { year: 2017 }, { companyUrn: 'urn:acme' }),
+      entry('Detour', { year: 2018 }, { year: 2019 }),
+      entry('Acme', { year: 2020 }, null, { companyUrn: 'urn:acme' }),
+    ]);
+    expect(matched).toBe(true);
+    expect(onward.map((o) => o.companyName)).toEqual(['Detour']);
+  });
+
+  it('drops earlier-overlapping side roles, keeps on-or-after employers', () => {
+    const focus = company('Core', { year: 2018, month: 1 }, { companyUrn: 'urn:core' });
+    const { onward } = deriveOnward(focus, [
+      entry('Core', { year: 2018, month: 1 }, { year: 2021, month: 6 }, {
+        companyUrn: 'urn:core',
+      }),
+      // Side gig that started before they left Core (overlap) — dropped.
+      entry('Sideproject', { year: 2020 }, { year: 2022 }),
+      // True next employer — kept.
+      entry('Next', { year: 2021, month: 9 }, null),
+    ]);
+    expect(onward.map((o) => o.companyName)).toEqual(['Next']);
+  });
+
+  it('keeps a job that starts the SAME month they left (seamless move)', () => {
+    const focus = company('Anchor', { year: 2018, month: 1 }, { companyUrn: 'urn:anchor' });
+    const { onward } = deriveOnward(focus, [
+      entry('Anchor', { year: 2018, month: 1 }, { year: 2020, month: 12 }, {
+        companyUrn: 'urn:anchor',
+      }),
+      // Started the exact month they left Anchor — a seamless next move, counts.
+      entry('Seamless', { year: 2020, month: 12 }, null),
+    ]);
+    expect(onward.map((o) => o.companyName)).toEqual(['Seamless']);
+  });
+
+  it('treats Present-at-company as terminal (matched, empty onward)', () => {
+    const focus = company('Stay', { year: 2019 }, { companyUrn: 'urn:stay' });
+    const { matched, onward } = deriveOnward(focus, [
+      entry('Stay', { year: 2019 }, null, { companyUrn: 'urn:stay' }),
+    ]);
+    expect(matched).toBe(true);
+    expect(onward).toEqual([]);
+  });
+
+  it('returns matched:false when the profile never lists the company', () => {
+    const focus = company('Escale', { year: 2017 }, { companyUrn: 'urn:escale' });
+    const { matched, onward } = deriveOnward(focus, [
+      entry('Somewhere Else', { year: 2017 }, null),
+    ]);
+    expect(matched).toBe(false);
+    expect(onward).toEqual([]);
+  });
+
+  it('sorts onward stints ascending by start (deterministic)', () => {
+    const focus = company('Base', { year: 2010 }, { companyUrn: 'urn:base' });
+    const { onward } = deriveOnward(focus, [
+      entry('Base', { year: 2010 }, { year: 2012 }, { companyUrn: 'urn:base' }),
+      entry('Later', { year: 2018 }, null),
+      entry('Middle', { year: 2014, month: 2 }, { year: 2018 }),
+      entry('First', { year: 2012, month: 5 }, { year: 2014 }),
+    ]);
+    expect(onward.map((o) => o.companyName)).toEqual(['First', 'Middle', 'Later']);
+  });
+});
+
+function personWithOnward(
+  id: string,
+  onward: OnwardStint[],
+): PersonNode {
+  return {
+    id,
+    kind: 'person',
+    level: 1,
+    parentId: 'c0',
+    vanity: id,
+    profileUrl: `https://www.linkedin.com/in/${id}/`,
+    name: id,
+    status: 'expanded',
+    onward,
+    order: 0,
+  };
+}
+
+function stint(name: string, start: DateParts, opts: Partial<OnwardStint> = {}): OnwardStint {
+  return {
+    companyName: name,
+    companyUrn: opts.companyUrn,
+    start,
+    end: opts.end ?? null,
+    ...opts,
+  };
+}
+
+describe('swimlaneX', () => {
+  const min: DateParts = { year: 2017 };
+  const max: DateParts = { year: 2027 }; // 10-year span
+
+  it('places the range start at the axis left edge', () => {
+    expect(swimlaneX(min, min, max)).toBeCloseTo(AXIS_LEFT);
+  });
+
+  it('places the range end at the axis right edge', () => {
+    expect(swimlaneX(max, min, max)).toBeCloseTo(AXIS_LEFT + AXIS_WIDTH);
+  });
+
+  it('maps the midpoint to the axis center', () => {
+    expect(swimlaneX({ year: 2022 }, min, max)).toBeCloseTo(AXIS_LEFT + AXIS_WIDTH / 2);
+  });
+
+  it('clamps dates outside the fixed range to the edges', () => {
+    expect(swimlaneX({ year: 2010 }, min, max)).toBeCloseTo(AXIS_LEFT);
+    expect(swimlaneX({ year: 2040 }, min, max)).toBeCloseTo(AXIS_LEFT + AXIS_WIDTH);
+  });
+});
+
+describe('layoutSwimlanes', () => {
+  const focus = company('Hub', { year: 2017 }, { companyUrn: 'urn:hub' });
+  const now: DateParts = { year: 2027 };
+
+  it('stacks one lane per colleague in click order, appended downward', () => {
+    const out = layoutSwimlanes(
+      focus,
+      [
+        personWithOnward('p0', [stint('A', { year: 2020 })]),
+        personWithOnward('p1', [stint('B', { year: 2021 })]),
+      ],
+      now,
+    );
+    expect(out.lanes.map((l) => l.laneIndex)).toEqual([0, 1]);
+    expect(out.lanes[0].faceY).toBe(BAND_TOP);
+    expect(out.lanes[1].faceY).toBe(BAND_TOP + LANE_GAP);
+    expect(out.lanes.every((l) => l.faceX === AXIS_LEFT)).toBe(true);
+  });
+
+  it('positions leaves at their true date x on the lane row', () => {
+    const out = layoutSwimlanes(
+      focus,
+      [personWithOnward('p0', [stint('Mid', { year: 2022 })])],
+      now,
+    );
+    const leaf = out.lanes[0].leaves[0];
+    expect(leaf.x).toBeCloseTo(AXIS_LEFT + AXIS_WIDTH / 2);
+    expect(leaf.y).toBe(BAND_TOP);
+  });
+
+  it('flags a company reached by ≥2 colleagues as a convergence group', () => {
+    const out = layoutSwimlanes(
+      focus,
+      [
+        personWithOnward('p0', [stint('Nubank', { year: 2020 }, { companyUrn: 'urn:nubank' })]),
+        personWithOnward('p1', [
+          stint('Detour', { year: 2021 }),
+          stint('Nubank', { year: 2023 }, { companyUrn: 'urn:nubank' }),
+        ]),
+      ],
+      now,
+    );
+    expect(out.convergences).toHaveLength(1);
+    expect(out.convergences[0].key).toBe('urn:nubank');
+    expect(out.convergences[0].members).toHaveLength(2);
+    // Both Nubank leaves flagged; the lone Detour leaf is not.
+    const nubankLeaves = out.lanes.flatMap((l) =>
+      l.leaves.filter((leaf) => leaf.stint.companyName === 'Nubank'),
+    );
+    expect(nubankLeaves.every((leaf) => leaf.convergent)).toBe(true);
+    const detour = out.lanes[1].leaves.find((leaf) => leaf.stint.companyName === 'Detour');
+    expect(detour?.convergent).toBe(false);
+  });
+
+  it('does not converge a company that appears in only one lane', () => {
+    const out = layoutSwimlanes(
+      focus,
+      [
+        personWithOnward('p0', [
+          stint('Solo', { year: 2020 }),
+          stint('Solo', { year: 2022 }), // same name, same lane → not a convergence
+        ]),
+      ],
+      now,
+    );
+    expect(out.convergences).toEqual([]);
+  });
+
+  it('keys convergence by normalized name when no URN is present', () => {
+    const out = layoutSwimlanes(
+      focus,
+      [
+        personWithOnward('p0', [stint('Loft', { year: 2020 })]),
+        personWithOnward('p1', [stint('  loft  ', { year: 2022 })]),
+      ],
+      now,
+    );
+    expect(out.convergences).toHaveLength(1);
+    expect(out.convergences[0].key).toBe('loft');
   });
 });

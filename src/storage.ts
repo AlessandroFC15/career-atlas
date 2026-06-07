@@ -1,4 +1,9 @@
-import type { CareerGraph, CompanyExpansion, Seed } from './types';
+import type {
+  CareerGraph,
+  CompanyExpansion,
+  OnwardStint,
+  Seed,
+} from './types';
 
 // Single source of truth in M0 (m0-plan §9). One key, overwritten on re-seed.
 const SEED_KEY = 'seed';
@@ -37,6 +42,38 @@ export async function saveExpansion(
   const next: CareerGraph = {
     ...graph,
     expansions: { ...(graph.expansions ?? {}), [companyId]: expansion },
+  };
+  await saveGraph(next);
+  return next;
+}
+
+/**
+ * Patch one traced person in place (M3, m3-plan §8, §10). Reads the graph, finds
+ * the matching person inside `expansions[companyId].people`, and merges the
+ * status (+ onward trajectory) onto it. Mirrors `saveExpansion`: the atlas and
+ * every other person are untouched. Returns the updated graph (null if none, or
+ * if the company has no expansion / the person is absent).
+ */
+export async function saveTrace(
+  companyId: string,
+  personId: string,
+  patch: { status: 'expanded' | 'dismissed'; onward?: OnwardStint[]; expandedAt?: number },
+): Promise<CareerGraph | null> {
+  const graph = await loadGraph();
+  if (!graph) return null;
+  const expansion = graph.expansions?.[companyId];
+  if (!expansion) return null;
+  const next: CareerGraph = {
+    ...graph,
+    expansions: {
+      ...graph.expansions,
+      [companyId]: {
+        ...expansion,
+        people: expansion.people.map((p) =>
+          p.id === personId ? { ...p, ...patch } : p,
+        ),
+      },
+    },
   };
   await saveGraph(next);
   return next;

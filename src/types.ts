@@ -85,7 +85,24 @@ export interface PersonRecord {
   photoUrl?: string; // original media.licdn.com URL
 }
 
-/** One first-degree connection surfaced under a company (a raw Level 1 node). */
+/**
+ * One employer a colleague joined after leaving the shared company (a Level 2
+ * leaf, M3 §4). Plotted at its start date on the galaxy time axis. Never
+ * expandable.
+ */
+export interface OnwardStint {
+  companyName: string;
+  companyUrl?: string;
+  companyUrn?: string; // dedup/convergence key when present (else normalized name)
+  logoUrl?: string; // original media.licdn.com URL
+  logoDataUrl?: string; // cached base64, what the UI renders
+  start: DateParts; // join date: the x position on the time axis
+  end: DateParts | null; // null = Present (still there)
+  roles?: string[]; // the colleague's role title(s) there (shown on hover)
+}
+
+/** One first-degree connection surfaced under a company (a raw Level 1 node).
+ *  M3 traces a clicked person: `status` flips in place and `onward` is filled. */
 export interface PersonNode {
   id: string; // `${companyId}:${vanity}`, scoped per company (boomerang-safe)
   kind: 'person';
@@ -98,7 +115,14 @@ export interface PersonNode {
   location?: string;
   photoUrl?: string;
   photoDataUrl?: string; // cached base64, what the UI renders
-  status: 'raw'; // M3 adds 'verified' | 'pruned' (flips in place)
+  // 'raw': surfaced by M2, not yet traced (a candidate; also the resting state
+  //   after a retryable error). 'expanded': traced, anchored on the shared
+  //   company; `onward` present (possibly empty = terminal). 'dismissed': traced
+  //   but their profile does not list this company (a keyword false positive),
+  //   recoverable by re-clicking. (M3 §4)
+  status: 'raw' | 'expanded' | 'dismissed';
+  onward?: OnwardStint[]; // set when status === 'expanded' (empty = terminal)
+  expandedAt?: number; // epoch ms when traced: lanes stack in this (click) order
   order: number; // column position within the galaxy
 }
 

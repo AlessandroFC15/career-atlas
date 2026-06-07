@@ -15,3 +15,10 @@ export const handleStyle = { top: ORB / 2 } as const;
 // row can pack tight.
 export const PERSON_ORB = 60;
 export const PERSON_NODE_WIDTH = PERSON_ORB;
+
+// Onward "leaf" (M3): a Level-2 company a colleague joined next. The company
+// logo as the coin, with an always-on label (name + join year) below it. Never
+// expandable. The node box stays the orb width; the label is centered over it
+// (absolutely positioned), like the person name chip.
+export const ONWARD_ORB = 56;
+export const ONWARD_NODE_WIDTH = ONWARD_ORB;

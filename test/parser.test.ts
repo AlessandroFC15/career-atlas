@@ -103,4 +103,38 @@ describe('injectedScrapeExperience', () => {
     const entries = await injectedScrapeExperience(300);
     expect(entries).toEqual([]);
   });
+
+  it('ignores a trailing bold "skills" line on a single-role card', async () => {
+    // Regression: LinkedIn renders a bold skills summary at the bottom of a card
+    // ("JavaScript, React.js and +2 skills"). It must not be counted as a second
+    // role title (which would flip the single-role card into a grouped one and
+    // drop the whole job). The fix keys on "a date line follows the bold line".
+    document.body.innerHTML = `
+      <main><section>
+        <div>
+          <a href="/company/14048993/">Cayena</a>
+          <img src="https://media.licdn.com/logo.png" />
+          <p style="font-weight: 600">Staff Software Engineer</p>
+          <p>Cayena · Full-time</p>
+          <p>Oct 2025 - Present · 9 mos</p>
+          <p>São Paulo, Brazil · Remote</p>
+          <p>Cayena is a B2B marketplace.</p>
+          <p style="font-weight: 600">JavaScript, React.js and +2 skills</p>
+        </div>
+        <div>
+          <a href="/company/247645/">iFood</a>
+          <img src="https://media.licdn.com/logo.png" />
+          <p style="font-weight: 600">Software Engineer</p>
+          <p>iFood · Full-time</p>
+          <p>Dec 2020 - Oct 2021 · 11 mos</p>
+        </div>
+      </section></main>`;
+    const entries = await injectedScrapeExperience(1000);
+    const cayena = byCompany(entries, 'Cayena');
+    expect(cayena.roles).toHaveLength(1);
+    expect(cayena.roles[0].title).toBe('Staff Software Engineer');
+    expect(cayena.start).toEqual({ year: 2025, month: 10 });
+    expect(cayena.end).toBeNull();
+    expect(cayena.companyUrn).toBe('urn:li:company:14048993');
+  });
 });

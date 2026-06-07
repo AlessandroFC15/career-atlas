@@ -1,11 +1,13 @@
 import type { CSSProperties } from 'react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
-import { Avatar, CompanyLogo } from '../components';
+import { Avatar, CompanyLogo, Spinner } from '../components';
 import {
   handleStyle,
   LOGO,
   NODE_HEIGHT,
   NODE_WIDTH,
+  ONWARD_NODE_WIDTH,
+  ONWARD_ORB,
   ORB,
   ORB_INSET,
   PERSON_NODE_WIDTH,
@@ -27,6 +29,22 @@ export type PersonNodeData = {
   name: string;
   photoDataUrl?: string;
   index: number;
+  // M3: trace state. 'raw' = candidate (clickable), 'expanded' = settled into a
+  // lane (the face), 'dismissed' = false positive (dimmed, hover hint).
+  status?: 'raw' | 'expanded' | 'dismissed';
+  expanding?: boolean; // a trace is in flight: spinner over the orb
+  companyName?: string; // for the dismissed hint ("didn't work at <company>")
+  terminal?: boolean; // expanded but no onward: a quiet "still at <company>"
+};
+
+export type OnwardNodeData = {
+  name: string;
+  logoDataUrl?: string;
+  index: number; // for the staggered reveal along the lane
+  convergent?: boolean; // shared destination across ≥2 lanes: accent glow
+  year?: string; // the join year (when they moved there), shown under the name
+  color?: string; // dominant brand colour, tints the corona to match its beam
+  roles?: string[]; // the colleague's role title(s) there, revealed on hover
 };
 
 /**
@@ -95,21 +113,94 @@ function CompanyNode({ data }: NodeProps<Node<CompanyNodeData>>) {
  * staggers the galaxy reveal.
  */
 function PersonNode({ data }: NodeProps<Node<PersonNodeData>>) {
+  const status = data.status ?? 'raw';
   const style = {
     width: PERSON_NODE_WIDTH,
     '--i': data.index,
   } as CSSProperties;
   return (
-    <div className="person-node" style={style}>
+    <div className="person-node" data-status={status} style={style}>
+      {/* A right-edge source handle so an expanded face can beam to its first
+          onward leaf. Invisible (styled tiny); the cluster orbs never use it. */}
+      <Handle
+        id="r"
+        type="source"
+        position={Position.Right}
+        isConnectable={false}
+        style={{ top: PERSON_ORB / 2 }}
+      />
       <div className="person-node__pop">
         <div
           className="person-star"
           style={{ width: PERSON_ORB, height: PERSON_ORB }}
         >
           <Avatar dataUrl={data.photoDataUrl} name={data.name} size={PERSON_ORB} />
+          {data.expanding && (
+            <div className="person-star__spinner">
+              <Spinner />
+            </div>
+          )}
         </div>
-        {/* Name floats below the orb on hover only (see styles.css). */}
-        <span className="person-node__name">{data.name}</span>
+        {/* Name floats below the orb on hover only (see styles.css). A dismissed
+            orb instead reveals the false-positive hint. */}
+        <span className="person-node__name">
+          {status === 'dismissed'
+            ? `didn't work at ${data.companyName ?? 'here'}`
+            : data.name}
+        </span>
+        {/* A traced colleague with no onward path: a quiet always-on caption so
+            the lone face reads as intentional, not broken. */}
+        {status === 'expanded' && data.terminal && (
+          <span className="person-node__caption">
+            still at {data.companyName ?? 'here'}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A Level-2 onward "leaf" (m3-plan §6e): a small star with the company logo as
+ * the coin, sitting on a colleague's lane at its join date. Never expandable
+ * (no click handler). Companies reached by ≥2 colleagues carry a convergence
+ * accent. Name floats in on hover, like the person orbs.
+ */
+function OnwardNode({ data }: NodeProps<Node<OnwardNodeData>>) {
+  const style = {
+    width: ONWARD_NODE_WIDTH,
+    '--i': data.index,
+    '--leaf-color': data.color ?? 'rgb(140, 158, 235)',
+  } as CSSProperties;
+  const className = 'onward-node' + (data.convergent ? ' onward-node--converge' : '');
+  const hStyle = { top: ONWARD_ORB / 2 } as const;
+  return (
+    <div className={className} style={style}>
+      {/* l/r carry the lane beam (face → leaf → leaf); t/b carry the vertical
+          convergence threads between lanes. All invisible (styled tiny). */}
+      <Handle id="l" type="target" position={Position.Left} isConnectable={false} style={hStyle} />
+      <Handle id="r" type="source" position={Position.Right} isConnectable={false} style={hStyle} />
+      <Handle id="t" type="target" position={Position.Top} isConnectable={false} />
+      <Handle id="b" type="source" position={Position.Bottom} isConnectable={false} />
+      <div className="onward-node__pop">
+        {/* Role title(s) the colleague held there, revealed above the orb on
+            hover (latest first, as parsed). */}
+        {data.roles && data.roles.length > 0 && (
+          <span className="onward-node__title">{data.roles.join(' · ')}</span>
+        )}
+        <div
+          className="onward-star"
+          style={{ width: ONWARD_ORB, height: ONWARD_ORB }}
+        >
+          <CompanyLogo dataUrl={data.logoDataUrl} name={data.name} size={ONWARD_ORB} />
+        </div>
+        {/* Always-on label: the company they moved to, and the year it happened. */}
+        <div className="onward-node__label">
+          <span className="onward-node__name" title={data.name}>
+            {data.name}
+          </span>
+          {data.year && <span className="onward-node__year">{data.year}</span>}
+        </div>
       </div>
     </div>
   );
@@ -138,9 +229,33 @@ function SpacerNode() {
   return <div className="galaxy-spacer" aria-hidden="true" />;
 }
 
+/** The shared "today" line (M3): a faint vertical marker at the right edge of
+ *  the time axis, spanning the lanes. The present-tails (current jobs) reach it,
+ *  so "still there" reads as a line that arrives at today. Non-interactive. */
+function NowLineNode({ data }: NodeProps<Node<{ height: number }>>) {
+  return (
+    <div className="now-line" style={{ height: data.height }}>
+      <span className="now-line__label">now</span>
+    </div>
+  );
+}
+
+/** A zero-size invisible target on the now-line, so a present-tail beam can end
+ *  exactly on it (its left handle sits at today). */
+function NowAnchorNode() {
+  return (
+    <div className="now-anchor" aria-hidden="true">
+      <Handle id="l" type="target" position={Position.Left} isConnectable={false} />
+    </div>
+  );
+}
+
 export const nodeTypes = {
   company: CompanyNode,
   person: PersonNode,
+  onward: OnwardNode,
   galaxyTitle: GalaxyTitleNode,
   spacer: SpacerNode,
+  nowLine: NowLineNode,
+  nowAnchor: NowAnchorNode,
 };

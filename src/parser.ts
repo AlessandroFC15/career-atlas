@@ -183,7 +183,6 @@ export async function injectedScrapeExperience(
 
   function parseCard(card: Element): ExperienceEntry | null {
     const lines = lineEls(card);
-    const boldLines = lines.filter((l) => isBold(l.el));
     const companyUrl = companyLinkFrom(card);
     const logoUrl = logoUrlFrom(card);
 
@@ -196,6 +195,17 @@ export async function injectedScrapeExperience(
       }
       return '';
     };
+
+    // A bold line is a real company / role title only if a date line appears
+    // somewhere after it in the card. This drops the trailing bold SKILLS
+    // summary LinkedIn renders at the bottom of a card ("JavaScript, React.js
+    // and +2 skills"): it is bold but has no date after it, so without this it
+    // would be miscounted as an extra role, flip a single-role card into a
+    // grouped one, and make the whole card fail to parse (dropping the job).
+    // Keying on the date relationship, not the word "skills", stays robust.
+    const boldLines = lines.filter(
+      (l) => isBold(l.el) && nextDateAfter(lines.indexOf(l)) !== '',
+    );
 
     if (boldLines.length <= 1) {
       // Single-role card: bold = title, next plain line = "Company · Type".

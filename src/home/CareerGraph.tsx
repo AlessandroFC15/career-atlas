@@ -6,11 +6,12 @@ import {
   useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import type { CareerGraph as CareerGraphModel } from '../types';
+import type { CareerGraph as CareerGraphModel, DateParts } from '../types';
 import { Spinner } from './components';
+import { onwardAccentKey } from '../graph';
 import { nodeTypes } from './flow/nodes';
 import { edgeTypes } from './flow/edges';
-import { useLogoColors } from './flow/colors';
+import { useLogoColors, useSampledColors } from './flow/colors';
 import { buildAtlas, buildGalaxy } from './flow/build';
 
 /** The view the graph renders: the atlas chain, or one company's galaxy. */
@@ -32,17 +33,27 @@ function Flow({
   graph,
   view,
   onCompanyClick,
+  onPersonClick,
+  expandingIds,
   onBack,
   animateIntro,
 }: {
   graph: CareerGraphModel;
   view: GraphView;
   onCompanyClick: (companyId: string) => void;
+  onPersonClick: (personId: string) => void;
+  expandingIds: Set<string>;
   onBack: () => void;
   animateIntro: boolean;
 }) {
   const rf = useReactFlow();
   const colors = useLogoColors(graph.nodes);
+  // Current month, injected into the pure swimlane layout (which never reads the
+  // clock itself). Computed once per mount.
+  const now = useMemo<DateParts>(() => {
+    const d = new Date();
+    return { year: d.getFullYear(), month: d.getMonth() + 1 };
+  }, []);
 
   // The drill-in has three phases so the siblings can fade before the swap:
   //   atlas    → the chain.
@@ -85,21 +96,48 @@ function Flow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view.mode, viewKey]);
 
+  // Dominant brand colour per onward destination (keyed by convergence key, so
+  // the same company is one colour across lanes). Sampled from the leaf logos,
+  // reusing the atlas corona sampler. Feeds each lane beam + leaf its hue.
+  const onwardItems = useMemo(() => {
+    if (phase.k !== 'galaxy') return [] as { key: string; dataUrl?: string }[];
+    const people = graph.expansions?.[phase.id]?.people ?? [];
+    const seen = new Map<string, string | undefined>();
+    for (const p of people) {
+      if (p.status !== 'expanded' || !p.onward) continue;
+      for (const s of p.onward) {
+        const key = onwardAccentKey(s);
+        if (!seen.has(key)) seen.set(key, s.logoDataUrl);
+      }
+    }
+    return Array.from(seen, ([key, dataUrl]) => ({ key, dataUrl }));
+  }, [phase, graph]);
+  const onwardColors = useSampledColors(onwardItems);
+
   const atlasNormal = useMemo(() => buildAtlas(graph, colors), [graph, colors]);
   const scene = useMemo(() => {
     if (phase.k === 'entering') return buildAtlas(graph, colors, phase.id);
     if (phase.k === 'galaxy') {
       const focus = graph.nodes.find((n) => n.id === phase.id);
       const people = graph.expansions?.[phase.id]?.people ?? [];
-      return focus ? buildGalaxy(focus, people, colors) : atlasNormal;
+      return focus
+        ? buildGalaxy(focus, people, colors, now, expandingIds, onwardColors)
+        : atlasNormal;
     }
     return atlasNormal;
-  }, [phase, graph, colors, atlasNormal]);
+  }, [phase, graph, colors, atlasNormal, now, expandingIds, onwardColors]);
 
   const inGalaxy = phase.k === 'galaxy';
   const peopleCount =
     phase.k === 'galaxy'
       ? graph.expansions?.[phase.id]?.people?.length ?? 0
+      : 0;
+  // Lanes grow the band; reframe when a colleague is traced (the people array is
+  // patched in place, so the total count alone wouldn't change).
+  const laneCount =
+    phase.k === 'galaxy'
+      ? graph.expansions?.[phase.id]?.people?.filter((p) => p.status === 'expanded')
+          .length ?? 0
       : 0;
 
   // One continuous fitView per phase change (no teleport, since the focused star
@@ -118,7 +156,7 @@ function Flow({
     });
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, peopleCount, rf]);
+  }, [phase, peopleCount, laneCount, rf]);
 
   return (
     <div
@@ -143,6 +181,10 @@ function Flow({
         onNodeClick={(_, node) => {
           if (phase.k === 'atlas' && node.type === 'company') {
             onCompanyClick(node.id);
+          } else if (phase.k === 'galaxy' && node.type === 'person') {
+            // Trace this colleague (App no-ops if already expanded; a dismissed
+            // orb retries). Onward leaves are type 'onward' → not clickable.
+            onPersonClick(node.id);
           }
         }}
       >
@@ -210,12 +252,16 @@ export function CareerGraph({
   graph,
   view,
   onCompanyClick,
+  onPersonClick,
+  expandingIds,
   onBack,
   animateIntro = false,
 }: {
   graph: CareerGraphModel;
   view: GraphView;
   onCompanyClick: (companyId: string) => void;
+  onPersonClick: (personId: string) => void;
+  expandingIds: Set<string>;
   onBack: () => void;
   animateIntro?: boolean;
 }) {
@@ -225,6 +271,8 @@ export function CareerGraph({
         graph={graph}
         view={view}
         onCompanyClick={onCompanyClick}
+        onPersonClick={onPersonClick}
+        expandingIds={expandingIds}
         onBack={onBack}
         animateIntro={animateIntro}
       />

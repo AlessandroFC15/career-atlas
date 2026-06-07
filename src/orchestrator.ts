@@ -2,12 +2,14 @@ import { injectedReadProfileHeader } from './profileReader';
 import { injectedScrapeExperience } from './parser';
 import { injectedScrapePeople } from './peopleParser';
 import { fetchAsDataUrl } from './images';
-import { deriveGraph, personNodesFromRecords } from './graph';
-import { saveExpansion, saveGraph, saveSeed } from './storage';
+import { deriveGraph, deriveOnward, personNodesFromRecords } from './graph';
+import { saveExpansion, saveGraph, saveSeed, saveTrace } from './storage';
 import type {
   CompanyExpansion,
   ExperienceEntry,
   GraphNode,
+  OnwardStint,
+  PersonNode,
   ProfileHeader,
   Seed,
 } from './types';
@@ -360,6 +362,162 @@ export async function runExpandCompany(
       throw err;
     }
     throw new ExpandError(
+      'GENERIC',
+      err instanceof Error ? err.message : 'Something went wrong.',
+      workerTabId,
+    );
+  }
+}
+
+// === M3: trace where one clicked colleague went (m3-plan §8) =================
+
+/** No EMPTY here: "no shared stint" is the dismiss OUTCOME and "nothing after"
+ *  is a valid terminal lane, neither is an error. */
+export type TraceErrorCode = 'LOGGED_OUT' | 'PARSE_NOT_READY' | 'GENERIC';
+
+export class TraceError extends Error {
+  constructor(
+    public code: TraceErrorCode,
+    message: string,
+    public workerTabId?: number,
+  ) {
+    super(message);
+    this.name = 'TraceError';
+  }
+}
+
+/**
+ * The outcome of tracing one colleague. `dismissed` is a keyword false positive
+ * (their profile never lists this company); `expanded` carries the onward
+ * trajectory (possibly empty = terminal: still there, or nothing after).
+ */
+export type TraceResult =
+  | { status: 'dismissed' }
+  | { status: 'expanded'; onward: OnwardStint[]; expandedAt: number };
+
+export interface TraceRunHooks {
+  onProgress?: (message: string) => void;
+}
+
+/**
+ * Trace a single clicked colleague (m3-plan §8): open their experience page in a
+ * background worker tab, reuse `injectedScrapeExperience` to read their history,
+ * anchor it on this galaxy's company, and cut to where they went next. One page
+ * load per click. The worker tab is closed on success (and on the dismiss
+ * outcome), surfaced on any real error. On error the person stays 'raw'
+ * (retryable). Persists the result via `saveTrace`.
+ */
+export async function runTracePerson(
+  company: GraphNode,
+  person: PersonNode,
+  hooks: TraceRunHooks = {},
+): Promise<TraceResult> {
+  const progress = hooks.onProgress ?? (() => {});
+  let workerTabId: number | undefined;
+
+  try {
+    // Open the colleague's MAIN profile first (background), then client-side
+    // navigate to the experience detail page, mirroring the proven seed flow.
+    // A BACKGROUND worker tab (active:false) hit cold straight on the deep
+    // `details/experience/` route does not hydrate its list (it parsed empty);
+    // loading the base profile first boots LinkedIn's SPA so the soft route then
+    // renders even while the tab stays backgrounded. (Direct navigation DOES
+    // work in a foreground tab, verified manually, but we keep the worker
+    // backgrounded so it never steals focus.)
+    // Open the colleague's MAIN profile first (background), then client-side
+    // navigate to the experience detail page, mirroring the proven seed flow.
+    // A BACKGROUND worker tab (active:false) hit cold straight on the deep
+    // `details/experience/` route does not reliably hydrate its list (it parsed
+    // empty on a cold load); loading the base profile first boots LinkedIn's SPA
+    // so the soft route then renders even while the tab stays backgrounded.
+    // (One-step can appear to work once the assets are warm in cache, but is
+    // non-deterministic; direct navigation in a FOREGROUND tab works, but we
+    // keep the worker backgrounded so it never steals focus.)
+    progress(`Following ${person.name}…`);
+    const tab = await chrome.tabs.create({
+      url: person.profileUrl,
+      active: false,
+    });
+    workerTabId = tab.id;
+    if (workerTabId === undefined) {
+      throw new TraceError('GENERIC', 'Could not open a worker tab');
+    }
+
+    const loaded = await waitForLoad(workerTabId);
+    if (isLoggedOutUrl(loaded.url)) {
+      throw new TraceError(
+        'LOGGED_OUT',
+        'Log in to LinkedIn, then try following them again.',
+        workerTabId,
+      );
+    }
+
+    progress(`Reading ${person.name}'s path…`);
+    await chrome.tabs.update(workerTabId, {
+      url: person.profileUrl + 'details/experience/',
+    });
+    await waitForLoad(workerTabId, { urlIncludes: 'details/experience' });
+
+    const experiences = await injectFunc(workerTabId, injectedScrapeExperience, [15000]);
+    // An empty read is a failed read, not "they have no jobs": treat it as a
+    // retryable error (tab surfaced), never as a false-positive dismiss. A real
+    // false positive is "experiences parsed, but none match" (handled below).
+    if (!Array.isArray(experiences) || experiences.length === 0) {
+      throw new TraceError(
+        'PARSE_NOT_READY',
+        'Their experience list did not load in time. Try again.',
+        workerTabId,
+      );
+    }
+
+    const { matched, onward } = deriveOnward(company, experiences);
+
+    // False positive: their profile doesn't list this company. A dismiss
+    // outcome, not an error — let the orb dim in the cluster.
+    if (!matched) {
+      await saveTrace(company.id, person.id, { status: 'dismissed' });
+      if (workerTabId !== undefined) {
+        chrome.tabs.remove(workerTabId).catch(() => {});
+      }
+      return { status: 'dismissed' };
+    }
+
+    // Cache each onward logo as a data URL (home page, CORS-allowed, like photos).
+    progress('Charting their trajectory…');
+    const withLogos = await Promise.all(
+      onward.map(async (s) => ({
+        ...s,
+        logoDataUrl: await fetchAsDataUrl(s.logoUrl),
+      })),
+    );
+
+    // Stamp the trace time so lanes stack in the order colleagues were traced
+    // (click order), persisted so re-entry restores the same order.
+    const expandedAt = Date.now();
+    await saveTrace(company.id, person.id, {
+      status: 'expanded',
+      onward: withLogos,
+      expandedAt,
+    });
+
+    if (workerTabId !== undefined) {
+      chrome.tabs.remove(workerTabId).catch(() => {});
+    }
+    return { status: 'expanded', onward: withLogos, expandedAt };
+  } catch (err) {
+    console.error('[career-atlas] trace failed:', err);
+    if (err instanceof TraceError) {
+      err.workerTabId ??= workerTabId;
+      if (err.workerTabId !== undefined) {
+        chrome.tabs.update(err.workerTabId, { active: true }).catch(() => {});
+      }
+      throw err;
+    }
+    // A SeedError bubbling from waitForLoad (timeout / tab closed) lands here.
+    if (workerTabId !== undefined) {
+      chrome.tabs.update(workerTabId, { active: true }).catch(() => {});
+    }
+    throw new TraceError(
       'GENERIC',
       err instanceof Error ? err.message : 'Something went wrong.',
       workerTabId,

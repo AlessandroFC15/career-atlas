@@ -568,6 +568,266 @@ html, body {
   .person-node__name { transition: opacity 130ms ease; }
 }
 
+/* === M3: trace where a colleague went ===================================== */
+
+/* The pull-out tween (m3-plan §7): React Flow sets each node's world position as
+   a transform on its wrapper, so a CSS transition on that transform animates the
+   orb sliding from its cluster slot into its lane, AND the remaining cluster
+   orbs re-flowing to close the gap, for free. Scoped to the galaxy's person and
+   onward nodes so the atlas/drill-in is untouched. */
+.career-graph[data-mode='galaxy'] .react-flow__node-person,
+.career-graph[data-mode='galaxy'] .react-flow__node-onward {
+  transition: transform 460ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .career-graph[data-mode='galaxy'] .react-flow__node-person,
+  .career-graph[data-mode='galaxy'] .react-flow__node-onward {
+    transition: none;
+  }
+}
+
+/* Spinner over an orb while its trace is in flight. */
+.person-star__spinner {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(5, 7, 15, 0.55);
+  border-radius: 50%;
+}
+.person-star__spinner .spinner {
+  width: 26px;
+  height: 26px;
+  border-width: 3px;
+}
+
+/* A dismissed candidate (keyword false positive): dimmed in the cluster, with a
+   hint on hover. Recoverable: still clickable to retry. */
+.person-node[data-status='dismissed'] {
+  opacity: 0.42;
+  filter: grayscale(0.5);
+}
+.person-node[data-status='dismissed'] .person-star {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.15),
+    0 4px 12px rgba(0, 0, 0, 0.4);
+}
+.person-node[data-status='dismissed']:hover {
+  opacity: 0.75;
+}
+.person-node[data-status='dismissed'] .person-node__name {
+  font-weight: 500;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* Terminal colleague caption: a quiet always-on line below the lone face. */
+.person-node__caption {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 11.5px;
+  font-style: italic;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+/* An expanded colleague settled as a lane face: a slightly stronger corona than
+   a raw candidate, so the face reads as the anchor of its trajectory. */
+.person-node[data-status='expanded'] .person-star {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.3),
+    0 6px 16px rgba(0, 0, 0, 0.45),
+    0 0 20px 2px color-mix(in srgb, var(--accent) 38%, transparent);
+}
+
+/* Onward leaf (Level 2): a small company coin on a colleague's lane. Smaller and
+   quieter than a person; never expandable (no pointer affordance). */
+.onward-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.onward-node .react-flow__handle {
+  width: 1px;
+  height: 1px;
+  min-width: 0;
+  min-height: 0;
+  background: transparent;
+  border: none;
+  opacity: 0;
+}
+.onward-node__pop {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: person-appear 520ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: calc(var(--i) * 110ms);
+}
+.onward-node:hover { z-index: 10; }
+@media (prefers-reduced-motion: reduce) {
+  .onward-node__pop { animation: none; }
+}
+.onward-star {
+  position: relative;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  /* Corona glows the destination company's own brand colour (set per node via
+     --leaf-color), matching its incoming beam; falls back to soft indigo. */
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.22),
+    0 4px 12px rgba(0, 0, 0, 0.42),
+    0 0 14px 2px color-mix(in srgb, var(--leaf-color, rgb(140, 158, 235)) 42%, transparent);
+}
+.onward-star .logo,
+.onward-star .logo--fallback { border-radius: 50%; }
+/* Convergence: a company reached by ≥2 colleagues glows with the accent. */
+.onward-node--converge .onward-star {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent) 60%, white),
+    0 4px 12px rgba(0, 0, 0, 0.42),
+    0 0 16px 3px color-mix(in srgb, var(--accent) 55%, transparent),
+    0 0 30px 6px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+/* Always-on label under an onward leaf: the company they moved to, and the year
+   it happened. Absolutely positioned + centered over the orb, so it answers
+   "which company, and when" without a hover. */
+.onward-node__label {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  text-align: center;
+  pointer-events: none;
+}
+.onward-node__name {
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 1.25;
+  color: var(--text);
+  /* Keep long names tidy: at most two lines, then ellipsis. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.onward-node__year {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+/* A converged destination tints its year with the accent, echoing the glow. */
+.onward-node--converge .onward-node__year {
+  color: color-mix(in srgb, var(--accent) 80%, white);
+}
+/* Role title(s) held there: a glass chip above the orb, revealed on hover (so
+   it never collides with the always-on name/year label below). */
+.onward-node__title {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(3px);
+  max-width: 560px;
+  white-space: nowrap;
+  text-align: center;
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--text);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px 11px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 130ms ease, transform 130ms ease;
+}
+.onward-node:hover .onward-node__title {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .onward-node__title { transition: opacity 130ms ease; }
+}
+
+/* The faint dashed convergence thread fades in with the band. */
+.convergence-edge { animation: galaxy-title-in 700ms ease backwards; }
+@media (prefers-reduced-motion: reduce) {
+  .convergence-edge { animation: none; }
+}
+
+/* Shared "now" line: a faint vertical marker at today, spanning the lanes, that
+   the present-tails reach. Centered on its node x via translateX(-50%). */
+.now-line {
+  position: relative;
+  width: 1px;
+  transform: translateX(-50%);
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--accent) 38%, transparent) 12%,
+    color-mix(in srgb, var(--accent) 38%, transparent) 88%,
+    transparent
+  );
+  animation: galaxy-title-in 700ms ease backwards;
+  pointer-events: none;
+}
+.now-line__label {
+  position: absolute;
+  top: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--accent) 80%, white);
+  text-shadow: 0 0 10px var(--glow);
+}
+@media (prefers-reduced-motion: reduce) {
+  .now-line { animation: none; }
+}
+/* Invisible target sitting on the now-line for the present-tail beams. */
+.now-anchor {
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+.now-anchor .react-flow__handle {
+  width: 1px;
+  height: 1px;
+  min-width: 0;
+  min-height: 0;
+  background: transparent;
+  border: none;
+  opacity: 0;
+}
+
+/* Unobtrusive note when a trace fails (the worker tab is already surfaced). */
+.trace-note {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  max-width: 80%;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 13px;
+  border-radius: 16px;
+  padding: 8px 16px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
 /* Back-to-atlas control, top-left over the galaxy canvas. */
 .galaxy-back {
   position: absolute;

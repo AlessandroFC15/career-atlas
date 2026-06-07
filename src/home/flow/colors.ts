@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { GraphNode } from '../../types';
 
 /** Sample a logo's dominant (brand) colour, biased toward saturated pixels and
@@ -36,7 +36,22 @@ export function sampleDominantColor(dataUrl: string): Promise<string | null> {
           total += weight;
         }
         if (total < 1) return resolve(null);
-        resolve(`rgb(${Math.round(r / total)}, ${Math.round(g / total)}, ${Math.round(b / total)})`);
+        // Brighten dark brand colours (e.g. a deep-green logo) up to a visible
+        // floor against the near-black background, preserving hue by scaling all
+        // channels together. Only ever brightens; never dims a bright colour.
+        let ar = r / total;
+        let ag = g / total;
+        let ab = b / total;
+        const mx = Math.max(ar, ag, ab);
+        const TARGET = 175;
+        const lift = mx > 0 ? Math.min(TARGET / mx, 4) : 1;
+        if (lift > 1) {
+          ar *= lift;
+          ag *= lift;
+          ab *= lift;
+        }
+        const ch = (v: number) => Math.min(255, Math.round(v));
+        resolve(`rgb(${ch(ar)}, ${ch(ag)}, ${ch(ab)})`);
       } catch {
         resolve(null); // tainted canvas etc.
       }
@@ -46,25 +61,38 @@ export function sampleDominantColor(dataUrl: string): Promise<string | null> {
   });
 }
 
-/** Map of node id → dominant logo colour, sampled once per graph. */
-export function useLogoColors(nodes: GraphNode[]): Record<string, string> {
+/** Sample a list of logos to a `key → dominant colour` map. Each key is sampled
+ *  once; missing/failed samples are simply absent (callers fall back). The
+ *  `items` array must be memoized by the caller (it is the effect dependency). */
+export function useSampledColors(
+  items: { key: string; dataUrl?: string }[],
+): Record<string, string> {
   const [colors, setColors] = useState<Record<string, string>>({});
   useEffect(() => {
     let cancelled = false;
     Promise.all(
-      nodes.map(async (n) => {
-        const c = n.logoDataUrl ? await sampleDominantColor(n.logoDataUrl) : null;
-        return [n.id, c] as const;
+      items.map(async (it) => {
+        const c = it.dataUrl ? await sampleDominantColor(it.dataUrl) : null;
+        return [it.key, c] as const;
       }),
     ).then((entries) => {
       if (cancelled) return;
       const next: Record<string, string> = {};
-      for (const [id, c] of entries) if (c) next[id] = c;
+      for (const [k, c] of entries) if (c) next[k] = c;
       setColors(next);
     });
     return () => {
       cancelled = true;
     };
-  }, [nodes]);
+  }, [items]);
   return colors;
+}
+
+/** Map of node id → dominant logo colour, sampled once per graph. */
+export function useLogoColors(nodes: GraphNode[]): Record<string, string> {
+  const items = useMemo(
+    () => nodes.map((n) => ({ key: n.id, dataUrl: n.logoDataUrl })),
+    [nodes],
+  );
+  return useSampledColors(items);
 }

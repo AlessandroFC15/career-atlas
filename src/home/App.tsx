@@ -5,7 +5,9 @@ import {
   ExpandError,
   runExpandCompany,
   runSeed,
+  runTracePerson,
   SeedError,
+  TraceError,
 } from '../orchestrator';
 import type { CareerGraph as CareerGraphModel, Seed } from '../types';
 import { Avatar } from './components';
@@ -49,6 +51,11 @@ export function App() {
   // Navigation within the seeded view: the atlas chain, or a drilled-in galaxy
   // (m2-plan §3). Transient: never persisted, always starts at the atlas.
   const [nav, setNav] = useState<GraphView>({ mode: 'atlas' });
+  // Person ids with a trace in flight (M3): drives the spinner-on-orb. Transient.
+  const [expandingIds, setExpandingIds] = useState<Set<string>>(new Set());
+  // An unobtrusive note shown when a trace fails (the worker tab is already
+  // surfaced for the user to act on). Cleared when the next trace starts.
+  const [traceNote, setTraceNote] = useState<string | null>(null);
 
   // Read-on-mount: render the materialized graph from the store, never by
   // re-reading LinkedIn (m1-plan §9). An M0-era seed (no graph, or a stale one)
@@ -186,6 +193,68 @@ export function App() {
     }
   }
 
+  // Trace one clicked colleague (m3-plan §8, §9): spinner on the orb, one
+  // profile load, then patch that person in place (status + onward). Never
+  // re-fetches an already-expanded person; a dismissed orb re-clicks to retry.
+  async function handleTracePerson(personId: string) {
+    if (view.kind !== 'seeded' || nav.mode !== 'galaxy') return;
+    const companyId = nav.companyId;
+    const company = view.graph.nodes.find((n) => n.id === companyId);
+    const person = view.graph.expansions?.[companyId]?.people.find(
+      (p) => p.id === personId,
+    );
+    if (!company || !person) return;
+    if (person.status === 'expanded') return; // already traced, never re-fetch
+    if (expandingIds.has(personId)) return; // a trace is already in flight
+
+    setTraceNote(null);
+    setExpandingIds((prev) => new Set(prev).add(personId));
+    try {
+      const result = await runTracePerson(company, person);
+      setView((v) => {
+        if (v.kind !== 'seeded') return v;
+        const expansion = v.graph.expansions?.[companyId];
+        if (!expansion) return v;
+        return {
+          ...v,
+          graph: {
+            ...v.graph,
+            expansions: {
+              ...v.graph.expansions,
+              [companyId]: {
+                ...expansion,
+                people: expansion.people.map((p) =>
+                  p.id === personId
+                    ? {
+                        ...p,
+                        status: result.status,
+                        onward:
+                          result.status === 'expanded' ? result.onward : undefined,
+                        expandedAt:
+                          result.status === 'expanded'
+                            ? result.expandedAt
+                            : p.expandedAt,
+                      }
+                    : p,
+                ),
+              },
+            },
+          },
+        };
+      });
+    } catch (err) {
+      // Person stays 'raw' (retryable); the worker tab is already surfaced.
+      const e = err instanceof TraceError ? err : null;
+      setTraceNote(e?.message ?? 'Could not follow them. Try again.');
+    } finally {
+      setExpandingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(personId);
+        return next;
+      });
+    }
+  }
+
   function handleBack() {
     setNav({ mode: 'atlas' });
   }
@@ -211,6 +280,9 @@ export function App() {
           view={nav}
           onReseed={handleReset}
           onCompanyClick={handleExpand}
+          onPersonClick={handleTracePerson}
+          expandingIds={expandingIds}
+          traceNote={nav.mode === 'galaxy' ? traceNote : null}
           onBack={handleBack}
           animateIntro={animateIntro}
         />
@@ -327,6 +399,9 @@ function SeededState({
   view,
   onReseed,
   onCompanyClick,
+  onPersonClick,
+  expandingIds,
+  traceNote,
   onBack,
   animateIntro,
 }: {
@@ -335,6 +410,9 @@ function SeededState({
   view: GraphView;
   onReseed: () => void;
   onCompanyClick: (companyId: string) => void;
+  onPersonClick: (personId: string) => void;
+  expandingIds: Set<string>;
+  traceNote: string | null;
   onBack: () => void;
   animateIntro: boolean;
 }) {
@@ -361,9 +439,12 @@ function SeededState({
         graph={graph}
         view={view}
         onCompanyClick={onCompanyClick}
+        onPersonClick={onPersonClick}
+        expandingIds={expandingIds}
         onBack={onBack}
         animateIntro={animateIntro}
       />
+      {traceNote && <div className="trace-note">{traceNote}</div>}
     </div>
   );
 }
