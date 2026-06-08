@@ -212,17 +212,8 @@ function GalaxyChrome({ view, onBack }: { view: GraphView; onBack: () => void })
           <p className="muted">{message ?? 'Finding people you know…'}</p>
         </div>
       )}
-      {status === 'ready' && (
-        // Placeholder for paginated loading (M6). Disabled rather than a no-op,
-        // so it is an honest "not yet" instead of a fake affordance.
-        <button
-          className="galaxy-loadmore"
-          disabled
-          title="Loading more connections comes in a later milestone"
-        >
-          Show more people
-        </button>
-      )}
+      {/* "Show more people" now lives in the canvas as the next star in the row
+          (see flow/nodes LoadMoreNode), not a pill pinned to the window. */}
       {status === 'empty' && (
         <div className="galaxy-overlay">
           <p className="muted">

@@ -5,6 +5,7 @@ import {
   AXIS_WIDTH,
   BAND_TOP,
   GALAXY_DROP,
+  GALAXY_PERSON_GAP,
   GALAXY_RESERVE_BELOW,
   GALAXY_TITLE_DROP,
   LANE_GAP,
@@ -19,7 +20,11 @@ import type {
   GraphNode,
   PersonNode as PersonNodeModel,
 } from '../../types';
-import { NODE_WIDTH, ONWARD_NODE_WIDTH, PERSON_NODE_WIDTH } from './dimensions';
+import {
+  NODE_WIDTH,
+  ONWARD_NODE_WIDTH,
+  PERSON_NODE_WIDTH,
+} from './dimensions';
 import type { CompanyNodeData, OnwardNodeData, PersonNodeData } from './nodes';
 
 /** Tenure string for a graph node (reuses M0's formatTenure shape). */
@@ -142,6 +147,34 @@ export function buildGalaxy(
       draggable: false,
     };
   });
+
+  // The "show more people" orb: the next star in the row, one gap past the last
+  // face (the row is centered, so the rightmost orb sits at +halfExtent). Placed
+  // here, not as a screen-pinned pill, so "more" reads right where the cluster
+  // ends. Only while candidates remain: once everyone here is traced into a lane
+  // there is no cluster to extend. The orb owns its own loading state.
+  const moreNodes: Node[] =
+    cluster.length === 0
+      ? []
+      : (() => {
+          const halfExtent = ((cluster.length - 1) / 2) * GALAXY_PERSON_GAP;
+          const relX = halfExtent + GALAXY_PERSON_GAP;
+          return [
+            {
+              id: `more-${focus.id}`,
+              type: 'loadMore',
+              position: {
+                x: rowCenterX + relX - PERSON_NODE_WIDTH / 2,
+                y: base.y + GALAXY_DROP,
+              },
+              data: {},
+              draggable: false,
+              // Selectable keeps pointer-events on for the orb's own click/hover;
+              // it has no onNodeClick branch, so canvas selection stays inert.
+              selectable: true,
+            },
+          ];
+        })();
 
   // The swimlane band: one lane per expanded colleague (face + onward leaves),
   // lane beams in date order, and convergence threads where ≥2 lanes share a
@@ -314,7 +347,14 @@ export function buildGalaxy(
   };
 
   return {
-    nodes: [focusNode, titleNode, reserveNode, ...personNodes, ...laneNodes],
+    nodes: [
+      focusNode,
+      titleNode,
+      reserveNode,
+      ...personNodes,
+      ...moreNodes,
+      ...laneNodes,
+    ],
     edges: laneEdges,
   };
 }

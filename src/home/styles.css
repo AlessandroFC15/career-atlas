@@ -677,22 +677,26 @@ html, body {
   display: grid;
   place-items: center;
   background: #fff;
-  /* Corona glows the destination company's own brand colour (set per node via
-     --leaf-color), matching its incoming beam; falls back to soft indigo. */
+  /* Every leaf glows its destination company's own brand colour (set per node
+     via --leaf-color), matching its incoming beam, with a near+far two-layer
+     corona and a soft coloured rim. Falls back to soft indigo. */
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.22),
+    0 0 0 1px color-mix(in srgb, var(--leaf-color, rgb(140, 158, 235)) 50%, rgba(255, 255, 255, 0.35)),
     0 4px 12px rgba(0, 0, 0, 0.42),
-    0 0 14px 2px color-mix(in srgb, var(--leaf-color, rgb(140, 158, 235)) 42%, transparent);
+    0 0 16px 2px color-mix(in srgb, var(--leaf-color, rgb(140, 158, 235)) 72%, transparent),
+    0 0 42px 8px color-mix(in srgb, var(--leaf-color, rgb(140, 158, 235)) 36%, transparent);
 }
 .onward-star .logo,
 .onward-star .logo--fallback { border-radius: 50%; }
-/* Convergence: a company reached by ≥2 colleagues glows with the accent. */
+/* Convergence: a company reached by ≥2 colleagues uses the SAME glow as any
+   other leaf, distinguished only by a crisper, brighter ring; the connecting
+   thread is what carries the "they both ended up here" meaning. */
 .onward-node--converge .onward-star {
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--accent) 60%, white),
+    0 0 0 2px color-mix(in srgb, var(--leaf-color, var(--accent)) 80%, white),
     0 4px 12px rgba(0, 0, 0, 0.42),
-    0 0 16px 3px color-mix(in srgb, var(--accent) 55%, transparent),
-    0 0 30px 6px color-mix(in srgb, var(--accent) 30%, transparent);
+    0 0 16px 2px color-mix(in srgb, var(--leaf-color, var(--accent)) 72%, transparent),
+    0 0 42px 8px color-mix(in srgb, var(--leaf-color, var(--accent)) 36%, transparent);
 }
 /* Always-on label under an onward leaf: the company they moved to, and the year
    it happened. Absolutely positioned + centered over the orb, so it answers
@@ -887,23 +891,79 @@ html, body {
   .galaxy-title { animation: none; }
 }
 
-/* Load-more placeholder, bottom-center over the galaxy. Disabled until M6. */
-.galaxy-loadmore {
-  position: absolute;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 5;
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--border);
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 600;
-  border-radius: 20px;
-  padding: 8px 20px;
-  cursor: not-allowed;
-  opacity: 0.6;
+/* "Show more people": the next star in the people row. A glassy orb with a
+   dashed rim and a faint "+", sitting one gap past the last face, so "more here"
+   lives where the cluster ends (not a pill pinned to the window). No count: the
+   search pages until a load comes back empty, so it just reads "more". */
+.loadmore-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+}
+.loadmore-star {
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(
+    circle at 50% 38%,
+    rgba(124, 140, 255, 0.16),
+    rgba(124, 140, 255, 0.03)
+  );
+  border: 1.5px dashed rgba(140, 158, 235, 0.45);
+  box-shadow: 0 0 0 rgba(124, 140, 255, 0);
+  transition: transform 0.25s ease, box-shadow 0.35s ease,
+    border-color 0.25s ease, background 0.25s ease;
+}
+/* An ellipsis as three tiny star-dots, evenly spaced: a quiet "more" that reads
+   as starlight, not a glyph. */
+.loadmore-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.loadmore-dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(190, 200, 255, 0.95) 0%,
+    rgba(150, 166, 245, 0.45) 55%,
+    rgba(140, 158, 235, 0) 100%
+  );
+  transition: transform 0.25s ease, filter 0.25s ease;
+}
+.loadmore-node:hover .loadmore-dots i {
+  filter: brightness(1.35);
+  transform: scale(1.15);
+}
+.loadmore-node:hover .loadmore-star {
+  transform: scale(1.08);
+  border-color: rgba(160, 176, 255, 0.85);
+  background: radial-gradient(
+    circle at 50% 38%,
+    rgba(124, 140, 255, 0.28),
+    rgba(124, 140, 255, 0.06)
+  );
+  box-shadow: 0 0 22px rgba(124, 140, 255, 0.32);
+}
+.loadmore-node:hover .loadmore-star__plus {
+  color: rgba(214, 222, 255, 1);
+}
+/* Label below the orb: hidden at rest, floating in on hover, exactly like the
+   person orbs' name chip, so the row stays pure until you reach for it. */
+.loadmore-node__label {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  white-space: nowrap;
+}
+.loadmore-node:hover .loadmore-node__label {
+  opacity: 1;
 }
 
 /* Loading / empty / error overlay, centered over the focused star's galaxy. */

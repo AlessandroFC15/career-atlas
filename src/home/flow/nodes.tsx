@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import { Avatar, CompanyLogo, Spinner } from '../components';
 import {
@@ -170,7 +170,10 @@ function OnwardNode({ data }: NodeProps<Node<OnwardNodeData>>) {
   const style = {
     width: ONWARD_NODE_WIDTH,
     '--i': data.index,
-    '--leaf-color': data.color ?? 'rgb(140, 158, 235)',
+    // Monochrome logos (black/white) sample to no hue; fall back to a muted,
+    // low-luminance cool grey so they read as a quiet neutral star and recede
+    // next to the saturated brands, instead of a bright white beacon on black.
+    '--leaf-color': data.color ?? 'rgb(150, 160, 182)',
   } as CSSProperties;
   const className = 'onward-node' + (data.convergent ? ' onward-node--converge' : '');
   const hStyle = { top: ONWARD_ORB / 2 } as const;
@@ -250,6 +253,52 @@ function NowAnchorNode() {
   );
 }
 
+/**
+ * The "show more people" affordance, as the next star in the row: a small glassy
+ * orb (a dashed outline holding an ellipsis of three tiny star-dots) sitting just
+ * past the last face, so "more here" lives where the eye already is. Click loads
+ * the next page; while it
+ * loads the orb shows a spinner in place. There is no count (the search pages
+ * until a load returns empty), so the orb just says "more", not a number.
+ */
+function LoadMoreNode() {
+  const [loading, setLoading] = useState(false);
+  const onClick = () => {
+    if (loading) return;
+    setLoading(true);
+    // No pagination backend yet: spin briefly, then settle, rather than
+    // fabricating people. Wire the real paginated fetch here, clearing `loading`
+    // when the page arrives (and removing this orb when a page comes back empty).
+    setTimeout(() => setLoading(false), 1500);
+  };
+  return (
+    <div
+      className="loadmore-node"
+      style={{ width: PERSON_NODE_WIDTH } as CSSProperties}
+      onClick={onClick}
+      title="Show more people"
+    >
+      <div
+        className="loadmore-star"
+        style={{ width: PERSON_ORB, height: PERSON_ORB }}
+      >
+        {loading ? (
+          <Spinner />
+        ) : (
+          // An ellipsis rendered as three tiny stars: "more", quiet and at home
+          // in the sky rather than looking like a text control.
+          <span className="loadmore-dots" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
+        )}
+      </div>
+      <span className="loadmore-node__label">more</span>
+    </div>
+  );
+}
+
 export const nodeTypes = {
   company: CompanyNode,
   person: PersonNode,
@@ -258,4 +307,5 @@ export const nodeTypes = {
   spacer: SpacerNode,
   nowLine: NowLineNode,
   nowAnchor: NowAnchorNode,
+  loadMore: LoadMoreNode,
 };
