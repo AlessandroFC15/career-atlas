@@ -34,9 +34,9 @@ Same data, now rendered as an actual graph: your companies as a **horizontal car
 
 ---
 
-## M3 — Trace where a colleague went ⬅ next
+## M3 — Trace where a colleague went ✅
 
-*Detailed plan in `m3-plan.md`.* From an expanded galaxy (M2), **you click the people you actually worked with**, one at a time. Each click visits that one person's profile, parses their dated tenure (reusing the seed experience parser), anchors on the shared company, and plots the stints they took **after they left** it as **Level 2 leaf nodes** (never expandable). The clicked orb **animates out of the candidate cluster into its own swimlane**, where their onward stints sit on a **continuous real-time axis**. When two colleagues landed at the same place, a **convergence accent** (shared glow + connecting thread) links the stars at their true dates. A profile that doesn't list the company at all is a keyword false positive: the orb returns to the cluster, dimmed.
+*Status: shipped (commit `27772dc`, with follow-up polish). Detailed plan in `m3-plan.md`.* From an expanded galaxy (M2), **you click the people you actually worked with**, one at a time. Each click visits that one person's profile, parses their dated tenure (reusing the seed experience parser), anchors on the shared company, and plots the stints they took **after they left** it as **Level 2 leaf nodes** (never expandable). The clicked orb **animates out of the candidate cluster into its own swimlane**, where their onward stints sit on a **continuous real-time axis**. When two colleagues landed at the same place, a **convergence accent** (shared glow + connecting thread) links the stars at their true dates. A profile that doesn't list the company at all is a keyword false positive: the orb returns to the cluster, dimmed.
 
 This **replaces** the originally-planned auto-overlap-prune M3 *and* absorbs the old "onward workplaces" M4. **You** are the verifier now (clicking confirms the relationship), so the speculative bulk profile sweep and the overlap date-interval logic are cut.
 
@@ -44,7 +44,7 @@ This **replaces** the originally-planned auto-overlap-prune M3 *and* absorbs the
 
 ---
 
-## M4 — Human-shaped guardrails
+## M4 — Human-shaped guardrails ⬅ next
 
 Randomized reading-time pacing between profile visits, a session fetch budget that pauses and tells you when hit, halt-on-challenge detection (captcha/checkpoint) with a Resume affordance, and a visible Stop button.
 
