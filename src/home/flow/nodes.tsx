@@ -45,6 +45,7 @@ export type OnwardNodeData = {
   year?: string; // the join year (when they moved there), shown under the name
   color?: string; // dominant brand colour, tints the corona to match its beam
   roles?: string[]; // the colleague's role title(s) there, revealed on hover
+  companyUrl?: string; // LinkedIn page; an "open" badge on hover
 };
 
 /**
@@ -225,12 +226,45 @@ function OnwardNode({ data }: NodeProps<Node<OnwardNodeData>>) {
         {data.roles && data.roles.length > 0 && (
           <span className="onward-node__title">{data.roles.join(' · ')}</span>
         )}
-        <div
-          className="onward-star"
-          style={{ width: ONWARD_ORB, height: ONWARD_ORB }}
-        >
-          <CompanyLogo dataUrl={data.logoDataUrl} name={data.name} size={ONWARD_ORB} />
-        </div>
+        {data.companyUrl ? (
+          // The whole orb is the link to the company's LinkedIn page; the corner
+          // mark is a decorative "opens elsewhere" hint inside it (not its own
+          // link, so the click target is the full orb).
+          <a
+            className="onward-star"
+            style={{ width: ONWARD_ORB, height: ONWARD_ORB }}
+            href={data.companyUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={`Open ${data.name} on LinkedIn`}
+            aria-label={`Open ${data.name} on LinkedIn`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CompanyLogo dataUrl={data.logoDataUrl} name={data.name} size={ONWARD_ORB} />
+            <span className="orb-open" aria-hidden="true">
+              <svg
+                viewBox="0 0 24 24"
+                width="11"
+                height="11"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M8 16 L16 8" />
+                <path d="M9.5 8 H16 V14.5" />
+              </svg>
+            </span>
+          </a>
+        ) : (
+          <div
+            className="onward-star"
+            style={{ width: ONWARD_ORB, height: ONWARD_ORB }}
+          >
+            <CompanyLogo dataUrl={data.logoDataUrl} name={data.name} size={ONWARD_ORB} />
+          </div>
+        )}
         {/* Always-on label: the company they moved to, and the year it happened. */}
         <div className="onward-node__label">
           <span className="onward-node__name" title={data.name}>
@@ -294,8 +328,11 @@ function NowAnchorNode() {
  * the next page; while it
  * loads the orb shows a spinner in place. There is no count (the search pages
  * until a load returns empty), so the orb just says "more", not a number.
+ *
+ * `--i` is its slot in the people row (after the last face), so it staggers in
+ * as the LAST star of the reveal rather than popping in immediately.
  */
-function LoadMoreNode() {
+function LoadMoreNode({ data }: NodeProps<Node<{ index?: number }>>) {
   const [loading, setLoading] = useState(false);
   const onClick = () => {
     if (loading) return;
@@ -308,7 +345,7 @@ function LoadMoreNode() {
   return (
     <div
       className="loadmore-node"
-      style={{ width: PERSON_NODE_WIDTH } as CSSProperties}
+      style={{ width: PERSON_NODE_WIDTH, '--i': data.index ?? 0 } as CSSProperties}
       onClick={onClick}
       title="Show more people"
     >

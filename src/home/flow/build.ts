@@ -23,8 +23,17 @@ import {
   NODE_WIDTH,
   ONWARD_NODE_WIDTH,
   PERSON_NODE_WIDTH,
+  PERSON_ORB,
 } from './dimensions';
 import type { CompanyNodeData, OnwardNodeData, PersonNodeData } from './nodes';
+
+/** A company's full LinkedIn URL from its (possibly relative) stored link, so
+ *  the focus star can offer an "open on LinkedIn" badge. */
+function linkedInUrl(companyUrl?: string): string | undefined {
+  if (!companyUrl) return undefined;
+  if (/^https?:\/\//i.test(companyUrl)) return companyUrl;
+  return 'https://www.linkedin.com' + (companyUrl.startsWith('/') ? '' : '/') + companyUrl;
+}
 
 /** Tenure string for a graph node (reuses M0's formatTenure shape). */
 export function tenureOf(n: GraphNode): string {
@@ -128,7 +137,14 @@ export function buildGalaxy(
   // The "show more" orb (added below) is the next star in the row, so it counts
   // as a slot when centering: faces + orb are centered together, otherwise the
   // row leans left as the orb tacks on past the centered faces.
-  const hasMore = cluster.length > 0;
+  //
+  // It loads MORE colleagues, which has nothing to do with how many of the
+  // current batch you have clicked: so it stays as long as this galaxy has any
+  // people at all, even once every candidate has been traced into a lane (the
+  // cluster is then empty but more may still be out there). It only disappears
+  // for a truly empty galaxy (no colleagues to page past) or, in future, once a
+  // page comes back empty.
+  const hasMore = people.length > 0;
   const rowSlots = cluster.length + (hasMore ? 1 : 0);
 
   // Re-index the cluster among its own members (not p.order), so pulling one orb
@@ -142,6 +158,13 @@ export function buildGalaxy(
         x: rowCenterX + rel.x - PERSON_NODE_WIDTH / 2,
         y: base.y + rel.y,
       },
+      // Explicit dimensions so React Flow renders the orb visible at once instead
+      // of hiding it until a ResizeObserver measures it: those measurements fire
+      // per-node in no set order, which shreds the left-to-right --i stagger (each
+      // orb reveals whenever its own measure lands). The node is just the orb (the
+      // name chip floats absolutely on hover), so PERSON_ORB is its real size.
+      width: PERSON_NODE_WIDTH,
+      height: PERSON_ORB,
       data: {
         name: p.name,
         photoDataUrl: p.photoDataUrl,
@@ -157,9 +180,9 @@ export function buildGalaxy(
   // The "show more people" orb: the next star in the row, in the slot right after
   // the last face (centered together with the faces, so the row stays balanced as
   // candidates are traced out). Placed here, not as a screen-pinned pill, so
-  // "more" reads right where the cluster ends. Only while candidates remain: once
-  // everyone here is traced into a lane there is no cluster to extend. The orb
-  // owns its own loading state.
+  // "more" reads right where the cluster ends. When the cluster is empty (every
+  // candidate traced into a lane), the orb sits alone in the row's single slot,
+  // still offering to page in more colleagues. The orb owns its own loading state.
   const moreNodes: Node[] = !hasMore
     ? []
     : (() => {
@@ -172,7 +195,13 @@ export function buildGalaxy(
               x: rowCenterX + rel.x - PERSON_NODE_WIDTH / 2,
               y: base.y + GALAXY_DROP,
             },
-            data: {},
+            // Same fixed size as the faces so it reveals in step with the row,
+            // not whenever its own measurement lands (see person nodes above).
+            width: PERSON_NODE_WIDTH,
+            height: PERSON_ORB,
+            // The orb's slot in the row (right after the last face), so its reveal
+            // staggers in as the LAST star, not all at once before the faces.
+            data: { index: cluster.length },
             draggable: false,
             // Selectable keeps pointer-events on for the orb's own click/hover;
             // it has no onNodeClick branch, so canvas selection stays inert.
@@ -239,6 +268,7 @@ export function buildGalaxy(
           year: String(leaf.stint.start.year),
           color: leafColor, // the orb's own corona = its company colour
           roles: leaf.stint.roles,
+          companyUrl: linkedInUrl(leaf.stint.companyUrl),
         } as OnwardNodeData,
         draggable: false,
         // Selectable so React Flow keeps pointer-events on the node (needed for

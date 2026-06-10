@@ -349,6 +349,55 @@ html, body {
    .career-node, keeping the beams centered (143ece1). */
 .career-graph[data-mode='atlas'] .career-node { cursor: pointer; }
 
+/* React Flow gives every selectable node cursor:pointer; restore the default on
+   orbs that do nothing on click, so only the truly clickable ones (atlas stars,
+   raw/dismissed candidate orbs, the "show more" orb) read as clickable. */
+.career-graph[data-mode='galaxy'] .react-flow__node-company { cursor: default; }
+.person-node[data-status='expanded'] { cursor: default; }
+.onward-node { cursor: default; }
+
+/* The onward leaf orb is itself the link to the company's LinkedIn page. */
+a.onward-star {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+/* "Opens elsewhere" hint at the orb's top-right: a small glass disc, revealed on
+   hover. Purely decorative (pointer-events: none) — the whole orb is the click
+   target — but it brightens with the orb on hover so it reads as the affordance. */
+.orb-open {
+  position: absolute;
+  top: 0;
+  right: 0;
+  transform: translate(36%, -36%) scale(0.85);
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--border);
+  color: var(--accent);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 5;
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+.onward-node:hover .orb-open {
+  opacity: 1;
+  transform: translate(36%, -36%) scale(1);
+  color: color-mix(in srgb, var(--accent) 92%, white);
+  box-shadow: 0 0 10px var(--glow);
+}
+@media (prefers-reduced-motion: reduce) {
+  .orb-open { transition: opacity 140ms ease; }
+}
+
 .career-star-wrap {
   display: grid; /* shrink-wrap the orb so the lift scales from its center */
   transition: transform 180ms ease-out;
@@ -514,8 +563,25 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  animation: person-appear 600ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
-  animation-delay: calc(var(--i) * 90ms);
+}
+/* The intro cascade is ONLY for candidate orbs (raw/dismissed) in the cluster
+   row. A brisk left-to-right wave as they ignite, gated to begin AFTER the
+   drill-in / "load more" camera fly settles (rf.fitView, ~700ms) so the moving
+   viewport doesn't mask it (otherwise the whole wave plays mid-flight and reads
+   as instant). `backwards` holds the orb invisible through that delay. Quicker
+   and tighter than the chain's ceremony (450ms/1650ms): a quick wave.
+
+   Scoped by data-status so a traced colleague (status expanded) never inherits
+   this delayed reveal: it is already on screen and just slides into its lane, so
+   it must not blink back to opacity 0 and wait out the delay again. */
+.person-node[data-status='raw'] .person-node__pop,
+.person-node[data-status='dismissed'] .person-node__pop {
+  --person-intro-delay: 600ms;
+  --person-stagger: 120ms;
+  animation: person-appear 500ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: calc(
+    var(--person-intro-delay) + var(--i) * var(--person-stagger)
+  );
 }
 /* Hovered person rises above neighbours so its name chip reads cleanly. */
 .person-node:hover { z-index: 10; }
@@ -524,7 +590,8 @@ html, body {
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .person-node__pop { animation: none; }
+  .person-node[data-status='raw'] .person-node__pop,
+  .person-node[data-status='dismissed'] .person-node__pop { animation: none; }
 }
 /* Raw (unverified) person star: a soft neutral corona, dimmer than a company.
    M3 will give verified vs pruned their own treatment. */
@@ -927,6 +994,20 @@ html, body {
   flex-direction: column;
   align-items: center;
   cursor: pointer;
+  /* Reveal in step with the people row, as the LAST star (its --i is the slot
+     right after the final face). Same gate/stagger as .person-node__pop so the
+     wave reads as one cascade that ends on the "more" orb, not an orb that is
+     already there before the faces arrive. `backwards` holds it invisible
+     through the intro delay. */
+  --person-intro-delay: 600ms;
+  --person-stagger: 120ms;
+  animation: person-appear 500ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: calc(
+    var(--person-intro-delay) + var(--i) * var(--person-stagger)
+  );
+}
+@media (prefers-reduced-motion: reduce) {
+  .loadmore-node { animation: none; }
 }
 .loadmore-star {
   border-radius: 50%;
