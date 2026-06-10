@@ -634,6 +634,33 @@ html, body {
   pointer-events: none;
 }
 
+/* Cycling trace caption under an orb mid-trace: a quiet, muted line that gently
+   fades at each message swap. The hover name is suppressed while tracing (below)
+   so the two never overlap. */
+.person-node__progress {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--muted);
+  pointer-events: none;
+  animation: trace-caption 1.7s ease-in-out infinite;
+}
+@keyframes trace-caption {
+  0% { opacity: 0; }
+  22% { opacity: 0.7; }
+  78% { opacity: 0.7; }
+  100% { opacity: 0; }
+}
+/* While tracing, hide the hover name so it can't collide with the caption. */
+.person-node[data-expanding] .person-node__name { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .person-node__progress { animation: none; opacity: 0.7; }
+}
+
 /* An expanded colleague settled as a lane face: a slightly stronger corona than
    a raw candidate, so the face reads as the anchor of its trajectory. */
 .person-node[data-status='expanded'] .person-star {

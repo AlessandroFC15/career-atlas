@@ -36,6 +36,7 @@ import type { DateParts, ExperienceEntry, Role } from './types';
  */
 export async function injectedScrapeExperience(
   timeoutMs = 15000,
+  logoGraceMs = 6000,
 ): Promise<ExperienceEntry[]> {
   const MONTHS: Record<string, number> = {
     jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
@@ -261,7 +262,7 @@ export async function injectedScrapeExperience(
   // bounded grace period for the logos to populate, then proceed regardless (a
   // company may genuinely have no logo).
   const deadline = Date.now() + timeoutMs;
-  const LOGO_GRACE_MS = 6000;
+  const LOGO_GRACE_MS = logoGraceMs;
   let cards: Element[] = [];
   let listFoundAt: number | null = null;
   while (Date.now() < deadline) {

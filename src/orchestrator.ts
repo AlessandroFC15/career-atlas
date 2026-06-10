@@ -416,26 +416,13 @@ export async function runTracePerson(
   let workerTabId: number | undefined;
 
   try {
-    // Open the colleague's MAIN profile first (background), then client-side
-    // navigate to the experience detail page, mirroring the proven seed flow.
-    // A BACKGROUND worker tab (active:false) hit cold straight on the deep
-    // `details/experience/` route does not hydrate its list (it parsed empty);
-    // loading the base profile first boots LinkedIn's SPA so the soft route then
-    // renders even while the tab stays backgrounded. (Direct navigation DOES
-    // work in a foreground tab, verified manually, but we keep the worker
-    // backgrounded so it never steals focus.)
-    // Open the colleague's MAIN profile first (background), then client-side
-    // navigate to the experience detail page, mirroring the proven seed flow.
-    // A BACKGROUND worker tab (active:false) hit cold straight on the deep
-    // `details/experience/` route does not reliably hydrate its list (it parsed
-    // empty on a cold load); loading the base profile first boots LinkedIn's SPA
-    // so the soft route then renders even while the tab stays backgrounded.
-    // (One-step can appear to work once the assets are warm in cache, but is
-    // non-deterministic; direct navigation in a FOREGROUND tab works, but we
-    // keep the worker backgrounded so it never steals focus.)
-    progress(`Following ${person.name}…`);
+    // One-step: open the colleague's experience page directly in a background
+    // worker tab. An empty parse (page didn't hydrate cold) is a recoverable
+    // PARSE_NOT_READY error (tab surfaced, orb retryable), so we trade the
+    // two-step's reliable-but-slow profile-boot (~4s every trace) for speed.
+    progress(`Reading ${person.name}'s path…`);
     const tab = await chrome.tabs.create({
-      url: person.profileUrl,
+      url: person.profileUrl + 'details/experience/',
       active: false,
     });
     workerTabId = tab.id;
@@ -452,13 +439,14 @@ export async function runTracePerson(
       );
     }
 
-    progress(`Reading ${person.name}'s path…`);
-    await chrome.tabs.update(workerTabId, {
-      url: person.profileUrl + 'details/experience/',
-    });
-    await waitForLoad(workerTabId, { urlIncludes: 'details/experience' });
-
-    const experiences = await injectFunc(workerTabId, injectedScrapeExperience, [15000]);
+    // Shorter logo grace than the seed (2s vs 6s): a trace only needs the few
+    // onward companies' logos (the most recent, which load first), and we re-
+    // fetch them in the home page anyway. Cuts ~4s off the parser phase.
+    const experiences = await injectFunc(
+      workerTabId,
+      injectedScrapeExperience,
+      [15000, 2000],
+    );
     // An empty read is a failed read, not "they have no jobs": treat it as a
     // retryable error (tab surfaced), never as a false-positive dismiss. A real
     // false positive is "experiences parsed, but none match" (handled below).

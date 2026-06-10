@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import { Avatar, CompanyLogo, Spinner } from '../components';
 import {
@@ -106,6 +106,29 @@ function CompanyNode({ data }: NodeProps<Node<CompanyNodeData>>) {
   );
 }
 
+// Flavour captions cycled under an orb while its trace runs. Not tied to real
+// phases (the trace is fast now); they just keep the wait feeling alive.
+const TRACE_MESSAGES = [
+  'Opening their profile…',
+  'Reading their history…',
+  'Tracing where they went…',
+  'Charting the path…',
+];
+
+/** Cycle through the trace captions on a timer while `active`; resets when idle. */
+function useTraceMessage(active: boolean): string | null {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    if (!active) {
+      setI(0);
+      return;
+    }
+    const id = setInterval(() => setI((n) => (n + 1) % TRACE_MESSAGES.length), 1700);
+    return () => clearInterval(id);
+  }, [active]);
+  return active ? TRACE_MESSAGES[i] : null;
+}
+
 /**
  * A raw Level 1 person (m2-plan §6): a small star with the connection's photo.
  * The name is hidden and floats in on hover, so the row packs tight. Styled as
@@ -114,12 +137,18 @@ function CompanyNode({ data }: NodeProps<Node<CompanyNodeData>>) {
  */
 function PersonNode({ data }: NodeProps<Node<PersonNodeData>>) {
   const status = data.status ?? 'raw';
+  const traceMessage = useTraceMessage(!!data.expanding);
   const style = {
     width: PERSON_NODE_WIDTH,
     '--i': data.index,
   } as CSSProperties;
   return (
-    <div className="person-node" data-status={status} style={style}>
+    <div
+      className="person-node"
+      data-status={status}
+      data-expanding={data.expanding ? '' : undefined}
+      style={style}
+    >
       {/* A right-edge source handle so an expanded face can beam to its first
           onward leaf. Invisible (styled tiny); the cluster orbs never use it. */}
       <Handle
@@ -148,6 +177,11 @@ function PersonNode({ data }: NodeProps<Node<PersonNodeData>>) {
             ? `didn't work at ${data.companyName ?? 'here'}`
             : data.name}
         </span>
+        {/* While a trace runs, a caption cycles flavour messages below the orb
+            so the wait reads as active (the spinner shows over the orb above). */}
+        {traceMessage && (
+          <span className="person-node__progress">{traceMessage}</span>
+        )}
         {/* A traced colleague with no onward path: a quiet always-on caption so
             the lone face reads as intentional, not broken. */}
         {status === 'expanded' && data.terminal && (

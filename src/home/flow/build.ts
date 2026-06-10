@@ -5,7 +5,6 @@ import {
   AXIS_WIDTH,
   BAND_TOP,
   GALAXY_DROP,
-  GALAXY_PERSON_GAP,
   GALAXY_RESERVE_BELOW,
   GALAXY_TITLE_DROP,
   LANE_GAP,
@@ -118,17 +117,24 @@ export function buildGalaxy(
   // the node's top-left, accounting for the narrow person node.
   const rowCenterX = base.x + NODE_WIDTH / 2;
 
-  // Candidates (still in the cluster) vs traced colleagues (in the band). Lanes
-  // stack in trace (click) order via expandedAt, not the original cluster order.
+  // Candidates (still in the cluster) vs traced colleagues (in the band). Newest
+  // trace on top: sort by expandedAt DESCENDING, so a fresh lane appears just
+  // under the cluster and pushes the earlier ones down.
   const cluster = people.filter((p) => p.status !== 'expanded');
   const expanded = people
     .filter((p) => p.status === 'expanded')
-    .sort((a, b) => (a.expandedAt ?? 0) - (b.expandedAt ?? 0));
+    .sort((a, b) => (b.expandedAt ?? 0) - (a.expandedAt ?? 0));
+
+  // The "show more" orb (added below) is the next star in the row, so it counts
+  // as a slot when centering: faces + orb are centered together, otherwise the
+  // row leans left as the orb tacks on past the centered faces.
+  const hasMore = cluster.length > 0;
+  const rowSlots = cluster.length + (hasMore ? 1 : 0);
 
   // Re-index the cluster among its own members (not p.order), so pulling one orb
   // out into a lane closes the gap and the rest re-center.
   const personNodes: Node<PersonNodeData>[] = cluster.map((p, i) => {
-    const rel = layoutGalaxyPerson(i, cluster.length);
+    const rel = layoutGalaxyPerson(i, rowSlots);
     return {
       id: p.id,
       type: 'person',
@@ -148,33 +154,32 @@ export function buildGalaxy(
     };
   });
 
-  // The "show more people" orb: the next star in the row, one gap past the last
-  // face (the row is centered, so the rightmost orb sits at +halfExtent). Placed
-  // here, not as a screen-pinned pill, so "more" reads right where the cluster
-  // ends. Only while candidates remain: once everyone here is traced into a lane
-  // there is no cluster to extend. The orb owns its own loading state.
-  const moreNodes: Node[] =
-    cluster.length === 0
-      ? []
-      : (() => {
-          const halfExtent = ((cluster.length - 1) / 2) * GALAXY_PERSON_GAP;
-          const relX = halfExtent + GALAXY_PERSON_GAP;
-          return [
-            {
-              id: `more-${focus.id}`,
-              type: 'loadMore',
-              position: {
-                x: rowCenterX + relX - PERSON_NODE_WIDTH / 2,
-                y: base.y + GALAXY_DROP,
-              },
-              data: {},
-              draggable: false,
-              // Selectable keeps pointer-events on for the orb's own click/hover;
-              // it has no onNodeClick branch, so canvas selection stays inert.
-              selectable: true,
+  // The "show more people" orb: the next star in the row, in the slot right after
+  // the last face (centered together with the faces, so the row stays balanced as
+  // candidates are traced out). Placed here, not as a screen-pinned pill, so
+  // "more" reads right where the cluster ends. Only while candidates remain: once
+  // everyone here is traced into a lane there is no cluster to extend. The orb
+  // owns its own loading state.
+  const moreNodes: Node[] = !hasMore
+    ? []
+    : (() => {
+        const rel = layoutGalaxyPerson(cluster.length, rowSlots);
+        return [
+          {
+            id: `more-${focus.id}`,
+            type: 'loadMore',
+            position: {
+              x: rowCenterX + rel.x - PERSON_NODE_WIDTH / 2,
+              y: base.y + GALAXY_DROP,
             },
-          ];
-        })();
+            data: {},
+            draggable: false,
+            // Selectable keeps pointer-events on for the orb's own click/hover;
+            // it has no onNodeClick branch, so canvas selection stays inert.
+            selectable: true,
+          },
+        ];
+      })();
 
   // The swimlane band: one lane per expanded colleague (face + onward leaves),
   // lane beams in date order, and convergence threads where ≥2 lanes share a
