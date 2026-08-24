@@ -239,6 +239,9 @@ export function buildGalaxy(
         index: lane.laneIndex,
         status: 'expanded',
         companyName: focus.name,
+        // The face is a link to the colleague's profile (the orb's click is
+        // otherwise dead once traced).
+        profileUrl: lane.person.profileUrl,
         // No onward leaves = a terminal colleague (still here / nothing after).
         terminal: lane.leaves.length === 0,
       } as PersonNodeData,

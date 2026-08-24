@@ -356,8 +356,10 @@ html, body {
 .person-node[data-status='expanded'] { cursor: default; }
 .onward-node { cursor: default; }
 
-/* The onward leaf orb is itself the link to the company's LinkedIn page. */
-a.onward-star {
+/* The orbs that are links: the onward leaf opens its company, a traced lane face
+   opens the colleague's profile. */
+a.onward-star,
+a.person-star {
   cursor: pointer;
   text-decoration: none;
 }
@@ -388,7 +390,8 @@ a.onward-star {
     color 140ms ease,
     box-shadow 140ms ease;
 }
-.onward-node:hover .orb-open {
+.onward-node:hover .orb-open,
+.person-node:hover .orb-open {
   opacity: 1;
   transform: translate(36%, -36%) scale(1);
   color: color-mix(in srgb, var(--accent) 92%, white);

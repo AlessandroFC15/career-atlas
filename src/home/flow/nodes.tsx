@@ -35,6 +35,9 @@ export type PersonNodeData = {
   expanding?: boolean; // a trace is in flight: spinner over the orb
   companyName?: string; // for the dismissed hint ("didn't work at <company>")
   terminal?: boolean; // expanded but no onward: a quiet "still at <company>"
+  // The colleague's LinkedIn profile, on lane faces only: a traced face has no
+  // click of its own left (trace already happened), so the orb becomes the link.
+  profileUrl?: string;
 };
 
 export type OnwardNodeData = {
@@ -131,6 +134,31 @@ function useTraceMessage(active: boolean): string | null {
 }
 
 /**
+ * The "opens elsewhere" corner mark shared by the orbs that are links (an onward
+ * leaf, a traced lane face). Decorative: `.orb-open` is pointer-events: none, so
+ * the whole orb stays the click target.
+ */
+function OrbOpenMark() {
+  return (
+    <span className="orb-open" aria-hidden="true">
+      <svg
+        viewBox="0 0 24 24"
+        width="11"
+        height="11"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M8 16 L16 8" />
+        <path d="M9.5 8 H16 V14.5" />
+      </svg>
+    </span>
+  );
+}
+
+/**
  * A raw Level 1 person (m2-plan §6): a small star with the connection's photo.
  * The name is hidden and floats in on hover, so the row packs tight. Styled as
  * unverified; M3 introduces the verified/pruned visual language. The `--i` var
@@ -143,6 +171,20 @@ function PersonNode({ data }: NodeProps<Node<PersonNodeData>>) {
     width: PERSON_NODE_WIDTH,
     '--i': data.index,
   } as CSSProperties;
+  const orbStyle = { width: PERSON_ORB, height: PERSON_ORB };
+  // Only a lane face links out. A raw candidate's click belongs to trace, and
+  // that is the more valuable action on it.
+  const orbLink = status === 'expanded' ? data.profileUrl : undefined;
+  const orb = (
+    <>
+      <Avatar dataUrl={data.photoDataUrl} name={data.name} size={PERSON_ORB} />
+      {data.expanding && (
+        <div className="person-star__spinner">
+          <Spinner />
+        </div>
+      )}
+    </>
+  );
   return (
     <div
       className="person-node"
@@ -160,17 +202,28 @@ function PersonNode({ data }: NodeProps<Node<PersonNodeData>>) {
         style={{ top: PERSON_ORB / 2 }}
       />
       <div className="person-node__pop">
-        <div
-          className="person-star"
-          style={{ width: PERSON_ORB, height: PERSON_ORB }}
-        >
-          <Avatar dataUrl={data.photoDataUrl} name={data.name} size={PERSON_ORB} />
-          {data.expanding && (
-            <div className="person-star__spinner">
-              <Spinner />
-            </div>
-          )}
-        </div>
+        {orbLink ? (
+          // A traced face: its click no longer traces (that already happened), so
+          // the whole orb opens the colleague's profile, mirroring the onward leaf.
+          // stopPropagation keeps React Flow's onNodeClick from firing underneath.
+          <a
+            className="person-star"
+            style={orbStyle}
+            href={orbLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={`Open ${data.name} on LinkedIn`}
+            aria-label={`Open ${data.name} on LinkedIn`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {orb}
+            <OrbOpenMark />
+          </a>
+        ) : (
+          <div className="person-star" style={orbStyle}>
+            {orb}
+          </div>
+        )}
         {/* Name floats below the orb on hover only (see styles.css). A dismissed
             orb instead reveals the false-positive hint. */}
         <span className="person-node__name">
@@ -241,21 +294,7 @@ function OnwardNode({ data }: NodeProps<Node<OnwardNodeData>>) {
             onClick={(e) => e.stopPropagation()}
           >
             <CompanyLogo dataUrl={data.logoDataUrl} name={data.name} size={ONWARD_ORB} />
-            <span className="orb-open" aria-hidden="true">
-              <svg
-                viewBox="0 0 24 24"
-                width="11"
-                height="11"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M8 16 L16 8" />
-                <path d="M9.5 8 H16 V14.5" />
-              </svg>
-            </span>
+            <OrbOpenMark />
           </a>
         ) : (
           <div
