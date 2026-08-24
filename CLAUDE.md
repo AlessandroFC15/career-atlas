@@ -9,7 +9,7 @@ A Chrome extension (MV3) that builds and explores your career graph from your ow
 The product's identity is **your career as a star chart**. Keep this metaphor when adding or changing UI:
 
 - **Deep space background.** Near-black base (`--bg: #05070f`) with a radial "looking into the galaxy" glow toward the top (`--bg-core`), over a layered starfield: a fixed CSS far-field (tiled stars + vignette on `html, body`) plus React Flow's `<Background>` dots as a near-field layer that drifts on pan/zoom (parallax).
-- **Companies are stars.** Graph nodes are glassy, softly glowing cards floating in the void (`backdrop-filter: blur`, soft outer glow + inner highlight). Edges are faint beams of light with a subtle glow.
+- **Companies are orbs.** Graph nodes are glassy, softly glowing cards floating in the void (`backdrop-filter: blur`, soft outer glow + inner highlight). Edges are faint beams of light with a subtle glow.
 - **Starlight-indigo accent** (`--accent: #7c8cff`), not the old LinkedIn blue. Accent carries a glow (`--glow`) on buttons, brand text, etc.
 - **Glassy panels.** Bars, headers, and cards use translucent dark glass so the starfield shows through.
 - **Logos** keep a white tile so they read as little glowing badges against the dark; fallbacks are indigo-tinted tiles.
@@ -27,17 +27,28 @@ conversation; don't invent synonyms.
 
 - **Atlas** (`mode: 'atlas'`): all of your companies as the horizontal career chain. The home view.
 - **Galaxy** (`mode: 'galaxy'`, keyed by `companyId`): one company drilled into. That
-  company as the major star, its people as a cluster below it, and the swimlanes of
+  company as the major orb, its people as a cluster below it, and the swimlanes of
   whoever you've traced. You're in exactly one galaxy at a time.
 
 **Inside a galaxy** (not views, layers within the galaxy):
 
-- **Cluster**: the row of untraced candidate people under the company star.
+- **Cluster**: the row of untraced candidate people under the company orb.
 - **Swimlane**: one traced person's onward path, on the continuous real-time axis.
   One lane per person, stacked in click order. (`Swimlane`, `SwimlaneLeaf`,
   `swimlaneX` in `src/graph.ts`.)
 - **Leaf**: a single onward stint on a swimlane. Never expandable.
 - **Convergence**: the shared accent + thread when two lanes land at the same company.
+
+**The circles themselves are orbs.** One word, every level. "Star" describes the
+whole canvas (the star chart) and the background starfield, never an individual
+element:
+
+- **Company orb** (84px, `ORB`): the atlas chain, and the major orb of a galaxy.
+- **Person orb** (60px, `PERSON_ORB`): cluster candidates and swimlane faces.
+- **Onward orb** (56px, `ONWARD_ORB`): the Level 2 leaves on a swimlane.
+
+The image inside an orb is just its **logo** (companies) or **photo** (people).
+Don't call it a coin.
 
 **Two actions, two words. Never mix them:**
 
