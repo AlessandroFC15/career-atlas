@@ -18,6 +18,35 @@ Theme is centralized in CSS variables at the top of `src/home/styles.css` (`--bg
 
 Open taste calls (not yet decided): exact accent hue (indigo vs. cyan vs. gold/cartographic), and star density.
 
+## Vocabulary
+
+Settled names for the app's surfaces and actions. Use these in code, docs, and
+conversation; don't invent synonyms.
+
+**Two views** (the whole app is `GraphView` in `src/home/CareerGraph.tsx`, a two-mode union):
+
+- **Atlas** (`mode: 'atlas'`): all of your companies as the horizontal career chain. The home view.
+- **Galaxy** (`mode: 'galaxy'`, keyed by `companyId`): one company drilled into. That
+  company as the major star, its people as a cluster below it, and the swimlanes of
+  whoever you've traced. You're in exactly one galaxy at a time.
+
+**Inside a galaxy** (not views, layers within the galaxy):
+
+- **Cluster**: the row of untraced candidate people under the company star.
+- **Swimlane**: one traced person's onward path, on the continuous real-time axis.
+  One lane per person, stacked in click order. (`Swimlane`, `SwimlaneLeaf`,
+  `swimlaneX` in `src/graph.ts`.)
+- **Leaf**: a single onward stint on a swimlane. Never expandable.
+- **Convergence**: the shared accent + thread when two lanes land at the same company.
+
+**Two actions, two words. Never mix them:**
+
+- **Expand**: a *company* into its people (M2). One people-search page per click.
+- **Trace**: a *person* into their onward stints (M3). One profile visit per click.
+
+So: you expand a company, you trace a colleague. A person is `raw` (candidate),
+`traced`, or `dismissed` (a keyword false positive).
+
 ## Conventions
 
 - Pure, side-effect-free logic (e.g. `deriveGraph`, `layout` in `src/graph.ts`) stays free of DOM/storage/React and is unit-tested (Vitest + jsdom). React Flow rendering is eyeballed, not unit-tested.
