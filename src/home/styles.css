@@ -365,8 +365,11 @@ a.person-star {
 }
 
 /* "Opens elsewhere" hint at the orb's top-right: a small glass disc, revealed on
-   hover. Purely decorative (pointer-events: none) — the whole orb is the click
-   target — but it brightens with the orb on hover so it reads as the affordance. */
+   hover, brightening with the orb so it reads as the affordance. It sits mostly
+   outside the anchor's box (the outward translate), so it takes pointer events
+   itself once revealed — it is a child of the <a>, so clicking it opens the same
+   link. Inert while hidden, so an invisible disc never steals a hover from the
+   neighbouring leaf on a tight lane. */
 .orb-open {
   position: absolute;
   top: 0;
@@ -393,6 +396,8 @@ a.person-star {
 .onward-node:hover .orb-open,
 .person-node:hover .orb-open {
   opacity: 1;
+  pointer-events: auto;
+  cursor: pointer;
   transform: translate(36%, -36%) scale(1);
   color: color-mix(in srgb, var(--accent) 92%, white);
   box-shadow: 0 0 10px var(--glow);

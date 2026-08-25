@@ -135,8 +135,9 @@ function useTraceMessage(active: boolean): string | null {
 
 /**
  * The "opens elsewhere" corner mark shared by the orbs that are links (an onward
- * leaf, a traced lane face). Decorative: `.orb-open` is pointer-events: none, so
- * the whole orb stays the click target.
+ * leaf, a traced lane face). It renders inside the anchor, so the disc is part of
+ * the same link: the arrow you can see is the arrow you can click, including the
+ * part of it that overhangs the orb.
  */
 function OrbOpenMark() {
   return (
@@ -281,8 +282,8 @@ function OnwardNode({ data }: NodeProps<Node<OnwardNodeData>>) {
         )}
         {data.companyUrl ? (
           // The whole orb is the link to the company's LinkedIn page; the corner
-          // mark is a decorative "opens elsewhere" hint inside it (not its own
-          // link, so the click target is the full orb).
+          // mark is an "opens elsewhere" hint inside it, so its overhang clicks
+          // through to the same link rather than falling into the void.
           <a
             className="onward-star"
             style={{ width: ONWARD_ORB, height: ONWARD_ORB }}
