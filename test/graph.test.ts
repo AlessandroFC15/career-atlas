@@ -4,6 +4,7 @@ import {
   AXIS_WIDTH,
   BAND_TOP,
   COL_GAP,
+  FACE_GUTTER,
   GALAXY_DROP,
   GALAXY_PERSON_GAP,
   LANE_GAP,
@@ -396,7 +397,48 @@ describe('layoutSwimlanes', () => {
     expect(out.lanes.map((l) => l.laneIndex)).toEqual([0, 1]);
     expect(out.lanes[0].faceY).toBe(BAND_TOP);
     expect(out.lanes[1].faceY).toBe(BAND_TOP + LANE_GAP);
-    expect(out.lanes.every((l) => l.faceX === AXIS_LEFT)).toBe(true);
+    expect(out.lanes.every((l) => l.faceX === AXIS_LEFT - FACE_GUTTER)).toBe(true);
+  });
+
+  it('keeps the face clear of a first stint that starts before the axis does', () => {
+    // A colleague who left while you were still at the focus company: the stint
+    // clamps to the axis start, which is where the face used to sit.
+    const out = layoutSwimlanes(
+      focus,
+      [personWithOnward('p0', [stint('Early', { year: 2016 })])],
+      now,
+    );
+    const lane = out.lanes[0];
+    expect(lane.leaves[0].x - lane.faceX).toBeGreaterThanOrEqual(FACE_GUTTER - 0.001);
+  });
+
+  it('keeps the face clear of a bunch of stints that all clamp to the axis start', () => {
+    // Re-centering pulls the first of a colliding run left; it must not drift
+    // into the gutter.
+    const out = layoutSwimlanes(
+      focus,
+      [
+        personWithOnward('p0', [
+          stint('One', { year: 2015 }),
+          stint('Two', { year: 2016 }),
+          stint('Three', { year: 2017 }),
+        ]),
+      ],
+      now,
+    );
+    const lane = out.lanes[0];
+    expect(lane.leaves[0].x).toBeGreaterThanOrEqual(AXIS_LEFT - 0.001);
+    expect(lane.leaves[0].x - lane.faceX).toBeGreaterThanOrEqual(FACE_GUTTER - 0.001);
+  });
+
+  it('keeps the face clear of a stint a couple of months after the focus start', () => {
+    const out = layoutSwimlanes(
+      focus,
+      [personWithOnward('p0', [stint('Soon', { year: 2017, month: 3 })])],
+      now,
+    );
+    const lane = out.lanes[0];
+    expect(lane.leaves[0].x - lane.faceX).toBeGreaterThanOrEqual(FACE_GUTTER - 0.001);
   });
 
   it('positions leaves at their true date x on the lane row', () => {

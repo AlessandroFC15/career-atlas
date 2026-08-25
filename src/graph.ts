@@ -220,6 +220,13 @@ export const AXIS_WIDTH = 920;
  *  rarely fills its box. */
 export const MIN_LEAF_GAP = 100;
 
+/** How far left of the axis the lane face sits. The face is not an event on the
+ *  time axis, it is the lane's label, so it lives in the margin before time
+ *  starts rather than competing for space on it. That keeps it clear of a first
+ *  stint that begins at (or before) `focus.start`, which lands exactly on
+ *  `AXIS_LEFT`. Same size as `MIN_LEAF_GAP`, for the same label-width reason. */
+export const FACE_GUTTER = MIN_LEAF_GAP;
+
 /** The convergence accent key for an onward stint: its URN when present, else
  *  the normalized company name (m3-plan §6d). */
 export function onwardAccentKey(stint: OnwardStint): string {
@@ -252,7 +259,8 @@ export interface SwimlaneLeaf {
   convergent: boolean; // shares its accent key with a leaf in another lane
 }
 
-/** One colleague's lane: a face at the axis origin and its onward leaves. */
+/** One colleague's lane: a face in the gutter before the axis, and its onward
+ *  leaves on the axis itself. */
 export interface Swimlane {
   person: PersonNode;
   laneIndex: number;
@@ -317,6 +325,13 @@ function spaceLeaves(xs: number[], gap: number): number[] {
     const shift = Math.min(overflow, room);
     if (shift > 0) return out.map((x) => x - shift);
   }
+
+  // Re-centering a run whose leaves all sit at the axis start (a colleague who
+  // left before you did) drifts the first one left of the axis, into the face's
+  // gutter. Slide the lane back so nothing starts before time does; the gaps
+  // are already correct, so the whole run moves together.
+  const underflow = out.length ? AXIS_LEFT - out[0] : 0;
+  if (underflow > 0) return out.map((x) => x + underflow);
   return out;
 }
 
@@ -351,7 +366,7 @@ export function layoutSwimlanes(
       accentKey: onwardAccentKey(stint),
       convergent: false,
     }));
-    return { person, laneIndex, faceX: AXIS_LEFT, faceY, leaves };
+    return { person, laneIndex, faceX: AXIS_LEFT - FACE_GUTTER, faceY, leaves };
   });
 
   // Group leaves across all lanes by accent key; a key spanning ≥2 distinct
