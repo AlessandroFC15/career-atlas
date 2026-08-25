@@ -7,6 +7,7 @@ import {
   GALAXY_DROP,
   GALAXY_PERSON_GAP,
   LANE_GAP,
+  MIN_LEAF_GAP,
   deriveGraph,
   deriveOnward,
   layout,
@@ -445,6 +446,95 @@ describe('layoutSwimlanes', () => {
       now,
     );
     expect(out.convergences).toEqual([]);
+  });
+
+  it('leaves a well-spaced lane exactly where the dates put it', () => {
+    // A 10-year axis at 920px: five years apart is ~460px, far past the gap.
+    const out = layoutSwimlanes(
+      focus,
+      [personWithOnward('p0', [stint('A', { year: 2019 }), stint('B', { year: 2024 })])],
+      now,
+    );
+    const [a, b] = out.lanes[0].leaves;
+    expect(a.x).toBeCloseTo(swimlaneX({ year: 2019 }, { year: 2017 }, now));
+    expect(b.x).toBeCloseTo(swimlaneX({ year: 2024 }, { year: 2017 }, now));
+  });
+
+  it('pushes leaves apart to MIN_LEAF_GAP when their dates are close', () => {
+    const out = layoutSwimlanes(
+      focus,
+      [personWithOnward('p0', [stint('RNP', { year: 2018 }), stint('UFPA', { year: 2019 })])],
+      now,
+    );
+    const [a, b] = out.lanes[0].leaves;
+    expect(b.x - a.x).toBeCloseTo(MIN_LEAF_GAP);
+  });
+
+  it('splits the drift both ways around the run instead of shoving it right', () => {
+    const min: DateParts = { year: 2017 };
+    const trueA = swimlaneX({ year: 2018 }, min, now);
+    const trueB = swimlaneX({ year: 2019 }, min, now);
+    const out = layoutSwimlanes(
+      focus,
+      [personWithOnward('p0', [stint('RNP', { year: 2018 }), stint('UFPA', { year: 2019 })])],
+      now,
+    );
+    const [a, b] = out.lanes[0].leaves;
+    expect(a.x).toBeLessThan(trueA);
+    expect(b.x).toBeGreaterThan(trueB);
+    // The run keeps its original midpoint.
+    expect((a.x + b.x) / 2).toBeCloseTo((trueA + trueB) / 2);
+  });
+
+  it('separates consecutive months, the worst case', () => {
+    const out = layoutSwimlanes(
+      focus,
+      [
+        personWithOnward('p0', [
+          stint('One', { year: 2021, month: 1 }),
+          stint('Two', { year: 2021, month: 2 }),
+          stint('Three', { year: 2021, month: 3 }),
+        ]),
+      ],
+      now,
+    );
+    const xs = out.lanes[0].leaves.map((l) => l.x);
+    expect(xs[1] - xs[0]).toBeGreaterThanOrEqual(MIN_LEAF_GAP - 0.001);
+    expect(xs[2] - xs[1]).toBeGreaterThanOrEqual(MIN_LEAF_GAP - 0.001);
+  });
+
+  it('keeps a pushed lane inside the axis rather than past the today line', () => {
+    // Three stints bunched at the far right would otherwise overflow the axis.
+    const out = layoutSwimlanes(
+      focus,
+      [
+        personWithOnward('p0', [
+          stint('One', { year: 2026, month: 10 }),
+          stint('Two', { year: 2026, month: 11 }),
+          stint('Three', { year: 2026, month: 12 }),
+        ]),
+      ],
+      now,
+    );
+    const xs = out.lanes[0].leaves.map((l) => l.x);
+    expect(xs[xs.length - 1]).toBeLessThanOrEqual(AXIS_LEFT + AXIS_WIDTH + 0.001);
+    expect(xs[0]).toBeGreaterThanOrEqual(AXIS_LEFT - 0.001);
+  });
+
+  it('reports the nudged x in the convergence group, not the raw date x', () => {
+    const out = layoutSwimlanes(
+      focus,
+      [
+        personWithOnward('p0', [
+          stint('Near', { year: 2020 }),
+          stint('Nubank', { year: 2020, month: 6 }, { companyUrn: 'urn:nubank' }),
+        ]),
+        personWithOnward('p1', [stint('Nubank', { year: 2023 }, { companyUrn: 'urn:nubank' })]),
+      ],
+      now,
+    );
+    const member = out.convergences[0].members.find((m) => m.laneIndex === 0);
+    expect(member?.x).toBeCloseTo(out.lanes[0].leaves[1].x);
   });
 
   it('keys convergence by normalized name when no URN is present', () => {

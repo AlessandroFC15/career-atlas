@@ -212,6 +212,11 @@ export const AXIS_LEFT = -460;
 /** Full width of the time axis. */
 export const AXIS_WIDTH = 920;
 
+/** Minimum horizontal distance between two leaves on the same lane. The real
+ *  footprint of a leaf is its label (120px, `.onward-node__label`), not the
+ *  56px orb, so anything closer than this collides into unreadable mush. */
+export const MIN_LEAF_GAP = 132;
+
 /** The convergence accent key for an onward stint: its URN when present, else
  *  the normalized company name (m3-plan §6d). */
 export function onwardAccentKey(stint: OnwardStint): string {
@@ -267,9 +272,56 @@ export interface SwimlaneLayout {
 }
 
 /**
+ * Nudge leaves apart so no two on a lane are closer than `MIN_LEAF_GAP`, moving
+ * them as little as possible from their true dates.
+ *
+ * `xs` is ascending (leaves are sorted by start). Substituting `z_i = x_i - i*gap`
+ * turns "keep a gap between neighbours" into "keep the sequence non-decreasing",
+ * which pool-adjacent-violators solves exactly: each run of colliding leaves
+ * collapses to a block, and the block sits at the mean of its members' wishes.
+ * That is the re-centering we want, the drift splits both ways around the run's
+ * original midpoint instead of shoving everything rightward, and leaves that
+ * already had room do not move at all.
+ */
+function spaceLeaves(xs: number[], gap: number): number[] {
+  const blocks: { sum: number; n: number }[] = [];
+  xs.forEach((x, i) => {
+    blocks.push({ sum: x - i * gap, n: 1 });
+    // Merge back while the new block would sit left of the one before it.
+    while (blocks.length > 1) {
+      const cur = blocks[blocks.length - 1];
+      const prev = blocks[blocks.length - 2];
+      if (prev.sum / prev.n <= cur.sum / cur.n) break;
+      blocks.pop();
+      blocks.pop();
+      blocks.push({ sum: prev.sum + cur.sum, n: prev.n + cur.n });
+    }
+  });
+
+  const out: number[] = [];
+  blocks.forEach((b) => {
+    const mean = b.sum / b.n;
+    for (let k = 0; k < b.n; k++) out.push(mean + out.length * gap);
+  });
+
+  // A long lane can be pushed past the shared "today" line, which would make a
+  // Present-tail beam point backwards. Slide the whole lane back inside the axis
+  // as far as its left edge allows; a lane with more leaves than the axis can
+  // hold overflows rather than collapsing on itself.
+  const overflow = out.length ? out[out.length - 1] - (AXIS_LEFT + AXIS_WIDTH) : 0;
+  if (overflow > 0) {
+    const room = Math.max(0, out[0] - AXIS_LEFT);
+    const shift = Math.min(overflow, room);
+    if (shift > 0) return out.map((x) => x - shift);
+  }
+  return out;
+}
+
+/**
  * Lay out the swimlane band (m3-plan §6): one lane per expanded colleague, in
  * the given order (click order), on a continuous time axis fixed to
- * `[focus.start, now]`. Onward leaves sit at their true start dates; companies
+ * `[focus.start, now]`. Onward leaves sit at their true start dates, nudged apart
+ * only where they would otherwise collide (`spaceLeaves`); companies
  * reached by ≥2 colleagues are flagged convergent and returned as groups so the
  * renderer can draw the shared glow + threads. Pure: `now` is injected.
  */
@@ -283,9 +335,15 @@ export function layoutSwimlanes(
 
   const lanes: Swimlane[] = expandedPeople.map((person, laneIndex) => {
     const faceY = BAND_TOP + laneIndex * LANE_GAP;
-    const leaves: SwimlaneLeaf[] = (person.onward ?? []).map((stint) => ({
+    const stints = person.onward ?? [];
+    // True dates first, then a spacing pass so close starts stay readable.
+    const xs = spaceLeaves(
+      stints.map((stint) => swimlaneX(stint.start, min, max)),
+      MIN_LEAF_GAP,
+    );
+    const leaves: SwimlaneLeaf[] = stints.map((stint, i) => ({
       stint,
-      x: swimlaneX(stint.start, min, max),
+      x: xs[i],
       y: faceY,
       accentKey: onwardAccentKey(stint),
       convergent: false,
