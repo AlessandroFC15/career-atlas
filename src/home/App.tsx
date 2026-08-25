@@ -12,7 +12,7 @@ import {
 import type { CareerGraph as CareerGraphModel, Seed } from '../types';
 import { Avatar } from './components';
 import { CareerGraph, type GraphView } from './CareerGraph';
-import { BreathingStar, LoadingChart, useSeedReveal } from './LoadingChart';
+import { BreathingOrb, LoadingChart, useSeedReveal } from './LoadingChart';
 
 type View =
   | { kind: 'loading' }
@@ -23,7 +23,7 @@ type View =
 
 // The cross-dissolve window (§8): both LoadingChart and CareerGraph are mounted
 // while the loading scatter fades out over M1's staggered ignition, then the
-// scatter unmounts. Tuned against the intro's first beats, not star coordinates.
+// scatter unmounts. Tuned against the intro's first beats, not orb coordinates.
 const HANDOFF_MS = 1000;
 // A short hold on the fully-lit scatter (its phase text already fading out)
 // before it dissolves into the graph, so the climax settles without lingering.
@@ -38,13 +38,13 @@ export function App() {
   // True only during the brief cross-dissolve after a successful seed.
   const [handoff, setHandoff] = useState(false);
   // The dissolve waits for two independent signals: the seed finishing (the
-  // graph is ready) and the climax sweep finishing (every star has ignited).
+  // graph is ready) and the climax sweep finishing (every orb has ignited).
   // Whichever lands last triggers it, exactly once. Refs, not state: they only
   // gate an imperative timer, never the render.
   const pendingSeed = useRef<{ seed: Seed; graph: CareerGraphModel } | null>(null);
   const climaxDone = useRef(false);
   const dissolved = useRef(false);
-  // True only after a fresh seed/re-seed (handleSeed), so the staggered star
+  // True only after a fresh seed/re-seed (handleSeed), so the staggered orb
   // ignition plays as a reward for that action. The load-on-mount path leaves
   // this false, so reopening an existing graph renders instantly.
   const [animateIntro, setAnimateIntro] = useState(false);
@@ -65,7 +65,7 @@ export function App() {
     // The `loading` view must never be a dead end. If the storage read rejects
     // or hangs (e.g. the extension context was invalidated by a rebuild while
     // this page stayed open), fall back to the welcome instead of the lone
-    // loading star sitting forever.
+    // loading orb sitting forever.
     const leaveLoading = () =>
       setView((v) => (v.kind === 'loading' ? { kind: 'empty' } : v));
     const fallback = setTimeout(() => {
@@ -315,7 +315,7 @@ export function App() {
       <Cosmos />
       <Brand />
       <main className="app__main">
-        {view.kind === 'loading' && <BreathingStar />}
+        {view.kind === 'loading' && <BreathingOrb />}
         {view.kind === 'empty' && <EmptyState onSeed={handleSeed} />}
         {view.kind === 'error' && (
           <ErrorState code={view.code} message={view.message} onRetry={handleSeed} />
@@ -350,12 +350,12 @@ function Cosmos() {
   );
 }
 
-/** The first-run welcome: a quiet anchor star (the same one a seed ignites the
+/** The first-run welcome: a quiet anchor orb (the same one a seed ignites the
  *  chart around), a headline, the value prop, then the call to seed. */
 function EmptyState({ onSeed }: { onSeed: () => void }) {
   return (
     <div className="welcome">
-      <span className="welcome__star" aria-hidden="true" />
+      <span className="welcome__orb" aria-hidden="true" />
       <h1 className="welcome__title">Your career, as a star chart</h1>
       <p className="welcome__lede">
         Career Atlas charts your professional history from your own LinkedIn

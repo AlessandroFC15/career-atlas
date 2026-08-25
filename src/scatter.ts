@@ -1,4 +1,4 @@
-// Deterministic scatter for the seed reveal's company stars (seed-reveal-plan
+// Deterministic scatter for the seed reveal's company orbs (seed-reveal-plan
 // §7). Pure and side-effect-free (no Math.random), so the field never jitters
 // on re-render and the geometry is unit-testable.
 
@@ -6,11 +6,11 @@
 // spokes: the classic sunflower / phyllotaxis distribution.
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 
-// Keep the innermost stars off the very center, where the "you" star sits.
+// Keep the innermost orbs off the very center, where the "you" orb sits.
 const INNER_RADIUS = 0.22;
 
 /**
- * Position the `index`-th of `count` company stars on a unit disk: a sunflower
+ * Position the `index`-th of `count` company orbs on a unit disk: a sunflower
  * spiral whose radius grows as sqrt(i) so the field fills evenly rather than
  * crowding the center. Returns `{ x, y }` with `x² + y² ≤ 1`; the view scales
  * this to a viewport field. Same input always yields the same point.

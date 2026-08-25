@@ -161,7 +161,7 @@ The galaxy keeps M2's top (focused company star) and the candidate cluster. M3 a
 ### 6e. Components
 
 - Reuse the M2 `PersonNode` orb for both the cluster and the lane face; add a **`'dismissed'`** visual (dimmed, hover hint) and an **`'expanded'`** treatment (settled into a lane).
-- A new **onward leaf star**: smaller than a person, company logo as the coin (reuse the company `Avatar`/logo tile with an indigo-tinted fallback), **Level 2, never expandable** (no click handler). Name on hover, like the cluster orbs.
+- A new **onward leaf star**: smaller than a person, company logo as its image (reuse the company `Avatar`/logo tile with an indigo-tinted fallback), **Level 2, never expandable** (no click handler). Name on hover, like the cluster orbs.
 - Lane beams (face → leaf → leaf, in date order) reuse the atlas edge-beam styling; convergence threads are a distinct, fainter accent.
 
 ---

@@ -99,7 +99,7 @@ async function injectFunc<A extends unknown[], R>(
  * phase strings are stable identifiers, not display copy: the human text lives
  * in the view's PHASE_TEXT map, so wording changes never touch orchestration.
  * `companyCount` rides along once parsing returns so the view knows how many
- * dim stars to bloom (never rendered as a number). `logo-cached` fires once per
+ * dim orbs to bloom (never rendered as a number). `logo-cached` fires once per
  * image as it *settles* (resolved or failed), so a logo-less company still ticks.
  */
 export type SeedProgress =
@@ -113,7 +113,7 @@ export type SeedProgress =
 /**
  * Fetch + cache the avatar and every company logo as data URLs (§8). Emits one
  * `onSettle` tick per image as it settles (the avatar first, so the view can
- * route that one to the "you" star; then each logo). fetchAsDataUrl never
+ * route that one to the "you" orb; then each logo). fetchAsDataUrl never
  * rejects, so every settle reliably ticks even for a missing/free-text logo.
  */
 async function cacheImages(

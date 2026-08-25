@@ -26,7 +26,7 @@ export type GraphView =
 
 /**
  * The inner flow: owns the React Flow instance (via useReactFlow, hence the
- * ReactFlowProvider wrapper below) so it can fly the camera into a star on
+ * ReactFlowProvider wrapper below) so it can fly the camera into an orb on
  * drill-in and reframe on the way back (m2-plan §7).
  */
 function Flow({
@@ -57,11 +57,11 @@ function Flow({
 
   // The drill-in has three phases so the siblings can fade before the swap:
   //   atlas    → the chain.
-  //   entering → still the chain, but the non-focused stars fading to 0 while
-  //              the camera begins flying into the focused star.
-  //   galaxy   → the focused star + its people.
+  //   entering → still the chain, but the non-focused orbs fading to 0 while
+  //              the camera begins flying into the focused orb.
+  //   galaxy   → the focused orb + its people.
   // The galaxy is built on the focused company's atlas coordinates (build.ts),
-  // so the star never moves across these phases; only the camera flies.
+  // so the orb never moves across these phases; only the camera flies.
   type Phase =
     | { k: 'atlas' }
     | { k: 'entering'; id: string }
@@ -140,7 +140,7 @@ function Flow({
           .length ?? 0
       : 0;
 
-  // One continuous fitView per phase change (no teleport, since the focused star
+  // One continuous fitView per phase change (no teleport, since the focused orb
   // keeps its atlas coordinates). The galaxy's bounds are constant from the
   // moment we enter it (the reserve spacer is always present, see build.ts), so
   // this flies straight to the final framing in a single move; people then fade
@@ -212,7 +212,7 @@ function GalaxyChrome({ view, onBack }: { view: GraphView; onBack: () => void })
           <p className="muted">{message ?? 'Finding people you know…'}</p>
         </div>
       )}
-      {/* "Show more people" now lives in the canvas as the next star in the row
+      {/* "Show more people" now lives in the canvas as the next orb in the row
           (see flow/nodes LoadMoreNode), not a pill pinned to the window. */}
       {status === 'empty' && (
         <div className="galaxy-overlay">

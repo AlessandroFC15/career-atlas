@@ -7,13 +7,13 @@ export type SeedPhase = Exclude<SeedProgress['phase'], 'logo-cached'>;
 
 /**
  * The view's derived seeding state (seed-reveal-plan §5): the current phase and,
- * once parsing returns, how many company stars to bloom. App folds the
+ * once parsing returns, how many company orbs to bloom. App folds the
  * orchestrator's SeedProgress events into this via the useSeedReveal hook.
  *
  * Note: logo-cached ticks are intentionally ignored. Logo caching is near-instant
  * and arrives last, so it is not a meaningful streaming signal (the original plan
  * over-bet on it). The reveal's climax is the single real event "we found your N
- * companies": the stars bloom and ignite on a view-driven sweep, not per logo.
+ * companies": the orbs bloom and ignite on a view-driven sweep, not per logo.
  */
 export interface SeedingProgress {
   phase: SeedPhase;
@@ -30,7 +30,7 @@ export const INITIAL_PROGRESS: SeedingProgress = {
 // A floor on display speed, never a ceiling: a slow seed is not held back.
 const MIN_BEAT_MS = 750;
 
-// The climax sweep: each company star arrives this far after the previous, and a
+// The climax sweep: each company orb arrives this far after the previous, and a
 // single arrival (bloom overshoot, dim hold, ignite to warm) lasts this long.
 // Kept in sync with the `company-arrive` keyframe + stagger in styles.css; the
 // view uses them to time the dissolve (and to fire it under reduced motion,
@@ -100,14 +100,14 @@ const PHASE_TEXT: Record<SeedPhase, string> = {
 };
 
 // Company-star field radius as a fraction of the viewport's smaller side (vmin),
-// so the scatter stays circular and centered on the "you" star at any size.
+// so the scatter stays circular and centered on the "you" orb at any size.
 const FIELD_RADIUS = 32;
 
 /**
  * The loading screen as the birth of the chart (seed-reveal-plan §7). A center
- * "you" star ignites and breathes through the (mostly opaque) page-load wait,
+ * "you" orb ignites and breathes through the (mostly opaque) page-load wait,
  * carried by a soft focal glow. The climax is the moment your companies are
- * parsed: a deterministic scatter of stars blooms and ignites to warm gold in a
+ * parsed: a deterministic scatter of orbs blooms and ignites to warm gold in a
  * staggered sweep, then App cross-dissolves it into the real graph (§8).
  *
  * `fading` renders the static, fully-lit final state (no entrance animations) for
@@ -125,12 +125,12 @@ export function LoadingChart({
 }) {
   const { phase, companyCount } = progress;
   const ignited = phase !== 'opening-profile';
-  // Once the sweep has lit the field, the stars are the message: fade the phase
+  // Once the sweep has lit the field, the orbs are the message: fade the phase
   // line out rather than letting it sit at full opacity through the hold/dissolve.
   const [swept, setSwept] = useState(false);
 
   // Fire the climax-done signal on a deterministic timer rather than the last
-  // star's animationend, so it still fires under reduced motion (no animation).
+  // orb's animationend, so it still fires under reduced motion (no animation).
   useEffect(() => {
     if (fading || companyCount <= 0) return;
     const dur = (companyCount - 1) * COMPANY_STAGGER_MS + COMPANY_ARRIVE_MS;
@@ -148,7 +148,7 @@ export function LoadingChart({
       aria-hidden="true"
     >
       {/* A soft focal glow so the void reads as "something forming" from the
-          first frame, before any company star is known (§3, §11). */}
+          first frame, before any company orb is known (§3, §11). */}
       <div className="loading-chart__core" />
       <div className="loading-chart__field">
         {Array.from({ length: companyCount }, (_, i) => {
@@ -158,10 +158,10 @@ export function LoadingChart({
             left: `calc(50% + ${(x * FIELD_RADIUS).toFixed(2)}vmin)`,
             top: `calc(50% + ${(y * FIELD_RADIUS).toFixed(2)}vmin)`,
           } as CSSProperties;
-          return <span key={i} className="loading-star loading-star--company" style={style} />;
+          return <span key={i} className="loading-orb loading-orb--company" style={style} />;
         })}
         <span
-          className={`loading-star loading-star--you${ignited ? ' is-ignited' : ''}`}
+          className={`loading-orb loading-orb--you${ignited ? ' is-ignited' : ''}`}
         />
         {/* A faint orbit with a circling point: an on-theme "working" indicator
             while the opaque page loads run. Fades out once the field ignites. */}
@@ -184,16 +184,16 @@ export function LoadingChart({
 }
 
 /**
- * The reopen-from-storage flash (§9): a single quiet breathing star, no scatter
+ * The reopen-from-storage flash (§9): a single quiet breathing orb, no scatter
  * and no phase text, shown for the brief moment App reads an existing seed from
  * storage. Replaces the old ring spinner so the void is consistent everywhere.
  */
-export function BreathingStar() {
+export function BreathingOrb() {
   return (
     <div className="loading-chart loading-chart--quiet" aria-hidden="true">
       <div className="loading-chart__core" />
       <div className="loading-chart__field">
-        <span className="loading-star loading-star--you is-ignited" />
+        <span className="loading-orb loading-orb--you is-ignited" />
       </div>
     </div>
   );

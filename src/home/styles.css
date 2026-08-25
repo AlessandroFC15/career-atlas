@@ -143,7 +143,7 @@ html, body {
 .muted { color: var(--muted); margin: 4px 0; }
 
 /* First-run welcome (EmptyState): a deliberate title screen in the void, not a
-   bare line + button. The anchor star breathes like the loading "you" star, so
+   bare line + button. The anchor orb breathes like the loading "you" orb, so
    seeding reads as igniting the chart around the same point. */
 .welcome {
   display: flex;
@@ -155,7 +155,7 @@ html, body {
   margin: 0 auto;
   padding-top: 14vh;
 }
-.welcome__star {
+.welcome__orb {
   width: 18px;
   height: 18px;
   border-radius: 50%;
@@ -163,7 +163,7 @@ html, body {
   box-shadow:
     0 0 18px 4px var(--glow),
     0 0 48px 11px color-mix(in srgb, var(--accent) 34%, transparent);
-  animation: star-breathe 4.2s ease-in-out infinite;
+  animation: orb-breathe 4.2s ease-in-out infinite;
   margin-bottom: 10px;
 }
 .welcome__title {
@@ -181,7 +181,7 @@ html, body {
 }
 .welcome__cta { margin-top: 10px; }
 @media (prefers-reduced-motion: reduce) {
-  .welcome__star { animation: none; }
+  .welcome__orb { animation: none; }
 }
 
 /* Buttons */
@@ -277,13 +277,13 @@ html, body {
 .career-graph .react-flow__controls-button svg { fill: var(--text); }
 
 /* Custom React Flow company node (Level 0, dormant — no behavior until M2):
-   a round, 3D glowing "star" with the company name below it. */
+   a round, 3D glowing "orb" with the company name below it. */
 .career-node {
   display: flex;
   flex-direction: column;
   align-items: center;
 }
-/* Wraps only the visible star + label, so the intro scale never touches the
+/* Wraps only the visible orb + label, so the intro scale never touches the
    edge handles (see CompanyNode); keeps the orb + label stacked with a gap. */
 .career-node__pop {
   display: flex;
@@ -302,11 +302,11 @@ html, body {
   opacity: 0;
 }
 
-/* The "star" is the company logo itself: a real, round coin floating in space.
+/* The company orb is the logo itself: a real, round disc floating in space.
    No glass-marble gradients. A corona blooms in the logo's own dominant colour
-   (--star-color, sampled in CareerGraph.tsx), and the coin drifts with a barely
+   (--orb-color, sampled in CareerGraph.tsx), and the orb drifts with a barely
    perceptible, staggered float so it feels suspended and alive. */
-.career-star {
+.career-orb {
   position: relative;
   border-radius: 50%;
   display: grid;
@@ -315,42 +315,42 @@ html, body {
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.35), /* thin bright rim */
     0 8px 22px rgba(0, 0, 0, 0.5), /* grounding shadow */
-    0 0 18px 1px color-mix(in srgb, var(--star-color) 65%, transparent), /* near corona */
-    0 0 46px 6px color-mix(in srgb, var(--star-color) 34%, transparent); /* far corona */
-  animation: starfloat 7s ease-in-out infinite;
+    0 0 18px 1px color-mix(in srgb, var(--orb-color) 65%, transparent), /* near corona */
+    0 0 46px 6px color-mix(in srgb, var(--orb-color) 34%, transparent); /* far corona */
+  animation: orbfloat 7s ease-in-out infinite;
   animation-delay: calc(var(--i) * -1.1s);
   transition: box-shadow 180ms ease-out; /* corona blooms/settles on hover (§M2) */
   will-change: transform;
 }
-/* The logo fills the coin. */
-.career-star .logo,
-.career-star .logo--fallback {
+/* The logo fills the orb. */
+.career-orb .logo,
+.career-orb .logo--fallback {
   border-radius: 50%;
   object-fit: cover;
 }
 /* A barely-there drift: 3px is enough to feel suspended, not bouncing. */
-@keyframes starfloat {
+@keyframes orbfloat {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-3px); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .career-star { animation: none; }
+  .career-orb { animation: none; }
 }
 
-/* === M2: star discoverability (m2-discoverability-plan) =====================
-   A company star is a door into its galaxy. The affordance is wordless: a
+/* === M2: orb discoverability (m2-discoverability-plan) ======================
+   A company orb is a door into its galaxy. The affordance is wordless: a
    pointer cursor, a hover lift + corona bloom that rehearse the fly-in, and a
-   faint ring previewing "this star contains a system you can enter." Scoped to
-   the atlas (the focused star in a galaxy is not clickable). Layer 2 (the
+   faint ring previewing "this orb contains a system you can enter." Scoped to
+   the atlas (the focused orb in a galaxy is not clickable). Layer 2 (the
    post-seed ripple) lives with the intro block below.
 
-   The lift rides on .career-star-wrap so it composes with the orb's infinite
-   starfloat (different element) and never touches the React Flow handles on
+   The lift rides on .career-orb-wrap so it composes with the orb's infinite
+   orbfloat (different element) and never touches the React Flow handles on
    .career-node, keeping the beams centered (143ece1). */
 .career-graph[data-mode='atlas'] .career-node { cursor: pointer; }
 
 /* React Flow gives every selectable node cursor:pointer; restore the default on
-   orbs that do nothing on click, so only the truly clickable ones (atlas stars,
+   orbs that do nothing on click, so only the truly clickable ones (atlas orbs,
    raw/dismissed candidate orbs, the "show more" orb) read as clickable. */
 .career-graph[data-mode='galaxy'] .react-flow__node-company { cursor: default; }
 .person-node[data-status='traced'] { cursor: default; }
@@ -358,8 +358,8 @@ html, body {
 
 /* The orbs that are links: the onward leaf opens its company, a traced lane face
    opens the colleague's profile. */
-a.onward-star,
-a.person-star {
+a.onward-orb,
+a.person-orb {
   cursor: pointer;
   text-decoration: none;
 }
@@ -406,48 +406,48 @@ a.person-star {
   .orb-open { transition: opacity 140ms ease; }
 }
 
-.career-star-wrap {
+.career-orb-wrap {
   display: grid; /* shrink-wrap the orb so the lift scales from its center */
   transition: transform 180ms ease-out;
   will-change: transform;
 }
-.career-graph[data-mode='atlas'] .career-node:hover .career-star-wrap {
+.career-graph[data-mode='atlas'] .career-node:hover .career-orb-wrap {
   transform: scale(1.06) translateY(-2px); /* rises toward you, like the fly-in */
 }
-/* Corona bloom: the same two layers as the base star, pushed brighter/wider. */
-.career-graph[data-mode='atlas'] .career-node:hover .career-star {
+/* Corona bloom: the same two layers as the base orb, pushed brighter/wider. */
+.career-graph[data-mode='atlas'] .career-node:hover .career-orb {
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.5),
     0 12px 28px rgba(0, 0, 0, 0.55),
-    0 0 28px 2px color-mix(in srgb, var(--star-color) 85%, transparent),
-    0 0 66px 12px color-mix(in srgb, var(--star-color) 50%, transparent);
+    0 0 28px 2px color-mix(in srgb, var(--orb-color) 85%, transparent),
+    0 0 66px 12px color-mix(in srgb, var(--orb-color) 50%, transparent);
 }
 
 /* Layer 3 — orbit ring: a thin hue-tinted circle a hair outside the rim. Lives
    as a pseudo-element (no extra DOM); hidden + slightly shrunk until hover. */
-.career-star::after {
+.career-orb::after {
   content: '';
   position: absolute;
   inset: -7px;
   border-radius: 50%;
-  border: 1px solid color-mix(in srgb, var(--star-color) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--orb-color) 55%, transparent);
   opacity: 0;
   transform: scale(0.9);
   transition: opacity 180ms ease-out, transform 180ms ease-out;
   pointer-events: none;
 }
-.career-graph[data-mode='atlas'] .career-node:hover .career-star::after {
+.career-graph[data-mode='atlas'] .career-node:hover .career-orb::after {
   opacity: 1;
   transform: scale(1);
 }
 @media (prefers-reduced-motion: reduce) {
   /* Hover collapses to a static brightness change: no lift, no ring fade. */
-  .career-star-wrap { transition: none; }
-  .career-graph[data-mode='atlas'] .career-node:hover .career-star-wrap {
+  .career-orb-wrap { transition: none; }
+  .career-graph[data-mode='atlas'] .career-node:hover .career-orb-wrap {
     transform: none;
   }
-  .career-star { transition: none; }
-  .career-star::after { display: none; }
+  .career-orb { transition: none; }
+  .career-orb::after { display: none; }
 }
 
 /* === Intro: staggered "ignition" of the chain on a fresh seed ===============
@@ -460,23 +460,23 @@ a.person-star {
   --stagger: 450ms;
   --pop: 1650ms;
 }
-/* Each star ignites: scale up from a point with a gentle overshoot, fading in.
+/* Each orb ignites: scale up from a point with a gentle overshoot, fading in.
    `backwards` holds the 0% frame (invisible) through the delay, so a not-yet-lit
-   star never flashes before its turn. The inner-card transform is independent of
+   orb never flashes before its turn. The inner-card transform is independent of
    React Flow's positioning transform and doesn't affect fitView measurement. */
 .career-graph[data-intro] .career-node__pop {
-  animation: star-ignite var(--pop) cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation: orb-ignite var(--pop) cubic-bezier(0.22, 1, 0.36, 1) backwards;
   animation-delay: calc(var(--i) * var(--stagger));
 }
-@keyframes star-ignite {
+@keyframes orb-ignite {
   0% { opacity: 0; transform: scale(0.6); }
   70% { opacity: 1; transform: scale(1.05); }
   100% { opacity: 1; transform: scale(1); }
 }
-/* A beam fades in just after its target star starts lighting up (--i = target's
+/* A beam fades in just after its target orb starts lighting up (--i = target's
    order, set on the edge group in edges.tsx). The whole group animates, so the
    blurred glow underlay fades in with the sharp beam instead of showing up
-   first. The +pop*0.2 offset lets the star lead, so beams never precede orbs. */
+   first. The +pop*0.2 offset lets the orb lead, so beams never precede orbs. */
 .career-graph[data-intro] .career-edge {
   animation: beam-draw var(--pop) ease-out backwards;
   animation-delay: calc(var(--i) * var(--stagger) + var(--pop) * 0.2);
@@ -485,32 +485,32 @@ a.person-star {
   from { opacity: 0; }
   to { opacity: 1; }
 }
-/* Hold the ambient drift until a star has settled, then let it loop. Because
+/* Hold the ambient drift until an orb has settled, then let it loop. Because
    each settle time differs by --stagger, the loops also stay desynced. */
-.career-graph[data-intro] .career-star {
+.career-graph[data-intro] .career-orb {
   animation-delay: calc(var(--i) * var(--stagger) + var(--pop));
 }
-/* Layer 2 — post-seed ripple: one gentle swell per star, slotted at the same
+/* Layer 2 — post-seed ripple: one gentle swell per orb, slotted at the same
    moment each one settles (i*stagger + pop), so it reads as a single "breathe"
    wave travelling down the chain after ignition. Rides the hover wrapper (so it
-   composes with starfloat) and runs once, only on a fresh seed. Scaling the
+   composes with orbfloat) and runs once, only on a fresh seed. Scaling the
    wrapper also swells the child's corona, so it glows as it breathes. */
-.career-graph[data-intro] .career-star-wrap {
-  animation: star-ripple 700ms ease-in-out backwards;
+.career-graph[data-intro] .career-orb-wrap {
+  animation: orb-ripple 700ms ease-in-out backwards;
   animation-delay: calc(var(--i) * var(--stagger) + var(--pop));
 }
-@keyframes star-ripple {
+@keyframes orb-ripple {
   0%, 100% { transform: scale(1); }
   45% { transform: scale(1.05); }
 }
 @media (prefers-reduced-motion: reduce) {
   .career-graph[data-intro] .career-node__pop,
-  .career-graph[data-intro] .career-star-wrap,
+  .career-graph[data-intro] .career-orb-wrap,
   .career-graph[data-intro] .career-edge { animation: none; }
 }
 
-/* Sibling stars dissolve during a drill-in (the "entering" beat) so they don't
-   pop out when the galaxy swaps in. The focused star keeps full opacity. */
+/* Sibling orbs dissolve during a drill-in (the "entering" beat) so they don't
+   pop out when the galaxy swaps in. The focused orb keeps full opacity. */
 .career-node--faded .career-node__pop {
   opacity: 0;
   transition: opacity 200ms ease;
@@ -550,7 +550,7 @@ a.person-star {
 }
 
 /* === M2: galaxy (drill-in) view ============================================
-   A person is a smaller star than a company: photo as the coin, name + headline
+   A person is a smaller orb than a company: photo as its disc, name + headline
    below. People fade and rise in as they are parsed (staggered by --i). */
 .person-node {
   display: flex;
@@ -601,9 +601,9 @@ a.person-star {
   .person-node[data-status='raw'] .person-node__pop,
   .person-node[data-status='dismissed'] .person-node__pop { animation: none; }
 }
-/* Raw (unverified) person star: a soft neutral corona, dimmer than a company.
+/* Raw (unverified) person orb: a soft neutral corona, dimmer than a company.
    M3 will give verified vs pruned their own treatment. */
-.person-star {
+.person-orb {
   position: relative;
   border-radius: 50%;
   display: grid;
@@ -614,8 +614,8 @@ a.person-star {
     0 6px 16px rgba(0, 0, 0, 0.45),
     0 0 16px 1px rgba(140, 158, 235, 0.28);
 }
-.person-star .avatar,
-.person-star .avatar--fallback { border-radius: 50%; }
+.person-orb .avatar,
+.person-orb .avatar--fallback { border-radius: 50%; }
 /* Name: hidden by default, floats in below the orb on hover as a glass chip. */
 .person-node__name {
   position: absolute;
@@ -662,7 +662,7 @@ a.person-star {
 }
 
 /* Spinner over an orb while its trace is in flight. */
-.person-star__spinner {
+.person-orb__spinner {
   position: absolute;
   inset: 0;
   display: grid;
@@ -670,7 +670,7 @@ a.person-star {
   background: rgba(5, 7, 15, 0.55);
   border-radius: 50%;
 }
-.person-star__spinner .spinner {
+.person-orb__spinner .spinner {
   width: 26px;
   height: 26px;
   border-width: 3px;
@@ -682,7 +682,7 @@ a.person-star {
   opacity: 0.42;
   filter: grayscale(0.5);
 }
-.person-node[data-status='dismissed'] .person-star {
+.person-node[data-status='dismissed'] .person-orb {
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.15),
     0 4px 12px rgba(0, 0, 0, 0.4);
@@ -738,14 +738,14 @@ a.person-star {
 
 /* A traced colleague settled as a lane face: a slightly stronger corona than
    a raw candidate, so the face reads as the anchor of its trajectory. */
-.person-node[data-status='traced'] .person-star {
+.person-node[data-status='traced'] .person-orb {
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.3),
     0 6px 16px rgba(0, 0, 0, 0.45),
     0 0 20px 2px color-mix(in srgb, var(--accent) 38%, transparent);
 }
 
-/* Onward leaf (Level 2): a small company coin on a colleague's lane. Smaller and
+/* Onward leaf (Level 2): a small company logo on a colleague's lane. Smaller and
    quieter than a person; never expandable (no pointer affordance). */
 .onward-node {
   display: flex;
@@ -773,7 +773,7 @@ a.person-star {
 @media (prefers-reduced-motion: reduce) {
   .onward-node__pop { animation: none; }
 }
-.onward-star {
+.onward-orb {
   position: relative;
   border-radius: 50%;
   display: grid;
@@ -788,12 +788,12 @@ a.person-star {
     0 0 16px 2px color-mix(in srgb, var(--leaf-color, rgb(140, 158, 235)) 72%, transparent),
     0 0 42px 8px color-mix(in srgb, var(--leaf-color, rgb(140, 158, 235)) 36%, transparent);
 }
-.onward-star .logo,
-.onward-star .logo--fallback { border-radius: 50%; }
+.onward-orb .logo,
+.onward-orb .logo--fallback { border-radius: 50%; }
 /* Convergence: a company reached by ≥2 colleagues uses the SAME glow as any
    other leaf, distinguished only by a crisper, brighter ring; the connecting
    thread is what carries the "they both ended up here" meaning. */
-.onward-node--converge .onward-star {
+.onward-node--converge .onward-orb {
   box-shadow:
     0 0 0 2px color-mix(in srgb, var(--leaf-color, var(--accent)) 80%, white),
     0 4px 12px rgba(0, 0, 0, 0.42),
@@ -955,7 +955,7 @@ a.person-star {
 }
 .galaxy-back:hover { background: var(--card-hover); }
 
-/* Galaxy title: a non-interactive canvas node sitting between the focused star
+/* Galaxy title: a non-interactive canvas node sitting between the focused orb
    and the people row. Its node origin is the row center; translateX(-50%)
    centers it, so it can grow to its one-line text. Clicks pass through; fades
    in with people (opacity only, to preserve the centering transform). */
@@ -993,7 +993,7 @@ a.person-star {
   .galaxy-title { animation: none; }
 }
 
-/* "Show more people": the next star in the people row. A glassy orb with a
+/* "Show more people": the next orb in the people row. A glassy orb with a
    dashed rim and a faint "+", sitting one gap past the last face, so "more here"
    lives where the cluster ends (not a pill pinned to the window). No count: the
    search pages until a load comes back empty, so it just reads "more". */
@@ -1002,7 +1002,7 @@ a.person-star {
   flex-direction: column;
   align-items: center;
   cursor: pointer;
-  /* Reveal in step with the people row, as the LAST star (its --i is the slot
+  /* Reveal in step with the people row, as the LAST orb (its --i is the slot
      right after the final face). Same gate/stagger as .person-node__pop so the
      wave reads as one cascade that ends on the "more" orb, not an orb that is
      already there before the faces arrive. `backwards` holds it invisible
@@ -1017,7 +1017,7 @@ a.person-star {
 @media (prefers-reduced-motion: reduce) {
   .loadmore-node { animation: none; }
 }
-.loadmore-star {
+.loadmore-orb {
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -1055,7 +1055,7 @@ a.person-star {
   filter: brightness(1.35);
   transform: scale(1.15);
 }
-.loadmore-node:hover .loadmore-star {
+.loadmore-node:hover .loadmore-orb {
   transform: scale(1.08);
   border-color: rgba(160, 176, 255, 0.85);
   background: radial-gradient(
@@ -1064,9 +1064,6 @@ a.person-star {
     rgba(124, 140, 255, 0.06)
   );
   box-shadow: 0 0 22px rgba(124, 140, 255, 0.32);
-}
-.loadmore-node:hover .loadmore-star__plus {
-  color: rgba(214, 222, 255, 1);
 }
 /* Label below the orb: hidden at rest, floating in on hover, exactly like the
    person orbs' name chip, so the row stays pure until you reach for it. */
@@ -1082,7 +1079,7 @@ a.person-star {
   opacity: 1;
 }
 
-/* Loading / empty / error overlay, centered over the focused star's galaxy. */
+/* Loading / empty / error overlay, centered over the focused orb's galaxy. */
 .galaxy-overlay {
   position: absolute;
   inset: 0;
@@ -1093,7 +1090,7 @@ a.person-star {
   justify-content: center;
   gap: 14px;
   pointer-events: none; /* let pan/zoom through; children re-enable as needed */
-  padding-top: 120px; /* sit below the focused star, not on top of it */
+  padding-top: 120px; /* sit below the focused orb, not on top of it */
 }
 .galaxy-overlay .error-card { pointer-events: auto; }
 
@@ -1123,8 +1120,8 @@ a.person-star {
 }
 
 /* === Seed reveal: loading as the birth of the chart (seed-reveal-plan) =======
-   A full-bleed layer over the cosmic backdrop. The "you" star ignites and
-   breathes at center; dim company stars bloom in a deterministic scatter and
+   A full-bleed layer over the cosmic backdrop. The "you" orb ignites and
+   breathes at center; dim company orbs bloom in a deterministic scatter and
    sharpen as their logos cache; one line of phase text crossfades at the bottom.
    On handoff, the whole layer dissolves over the graph's staggered ignition. */
 .loading-chart {
@@ -1169,11 +1166,11 @@ a.person-star {
   50% { opacity: 1; transform: scale(1.06); }
 }
 
-/* A star is a glowing white point with a colored corona. The "you" star is the
-   bright anchor at center; company stars warm from indigo to gold as they ignite.
+/* An orb is a glowing white point with a colored corona. The "you" orb is the
+   bright anchor at center; company orbs warm from indigo to gold as they ignite.
    The white core stays constant (gradients don't tween); the cool→warm shift
    rides the box-shadow corona, which does interpolate. */
-.loading-star {
+.loading-orb {
   position: absolute;
   border-radius: 50%;
   background: radial-gradient(circle, #fff 0%, #b6bdff 52%, transparent 80%);
@@ -1181,7 +1178,7 @@ a.person-star {
 
 /* You: the anchor of the chart. Dim until the header is read, then ignites and
    settles into a slow, steady breath that carries the long page-load wait. */
-.loading-star--you {
+.loading-orb--you {
   left: 50%;
   top: 50%;
   width: 15px;
@@ -1192,23 +1189,23 @@ a.person-star {
     0 0 18px 4px var(--glow),
     0 0 46px 10px color-mix(in srgb, var(--accent) 34%, transparent);
 }
-.loading-star--you.is-ignited {
+.loading-orb--you.is-ignited {
   opacity: 1;
   animation:
     you-ignite 1200ms cubic-bezier(0.22, 1, 0.36, 1) backwards,
-    star-breathe 4.2s ease-in-out 1200ms infinite;
+    orb-breathe 4.2s ease-in-out 1200ms infinite;
 }
 @keyframes you-ignite {
   0% { opacity: 0; transform: scale(0.4); }
   70% { opacity: 1; transform: scale(1.18); }
   100% { opacity: 1; transform: scale(1); }
 }
-@keyframes star-breathe {
+@keyframes orb-breathe {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.14); }
 }
 
-/* The "working" indicator: a faint orbital ring around the you-star with a
+/* The "working" indicator: a faint orbital ring around the you-orb with a
    single bright point circling it (the whole element rotates; the point is its
    ::before pinned to the ring's top). On-theme motion that reads as active
    progress through the opaque page-load wait, without a generic spinner. */
@@ -1250,15 +1247,15 @@ a.person-star {
   to { opacity: 1; }
 }
 
-/* Company stars: the climax. Each is laid out the moment the company list is
+/* Company orbs: the climax. Each is laid out the moment the company list is
    parsed and runs one `company-arrive` pass: a cool overshoot bloom, a brief
-   dim hold, then an ignition to a warm gold star. Staggered by --i so the field
+   dim hold, then an ignition to a warm gold orb. Staggered by --i so the field
    lights up as a sweep. The class declares the final lit state and the keyframe
-   ends there (no `forwards` needed): the star stays glowing after it arrives.
+   ends there (no `forwards` needed): the orb stays glowing after it arrives.
    Sized well above the background starfield's 1-2px dots so each reads as a
    distinct arrival, not lost in the void. Keep the timing in sync with
    COMPANY_STAGGER_MS / COMPANY_ARRIVE_MS in LoadingChart.tsx. */
-.loading-star--company {
+.loading-orb--company {
   width: 9px;
   height: 9px;
   margin: -4.5px 0 0 -4.5px;
@@ -1288,9 +1285,9 @@ a.person-star {
 /* The dissolve overlay (§8) shows the final, fully-lit field fading out: freeze
    every entrance animation so nothing re-blooms mid cross-dissolve. The base
    classes already declare the lit state, so killing the animations is enough. */
-.loading-chart--fading .loading-star--company,
+.loading-chart--fading .loading-orb--company,
 .loading-chart--fading .loading-chart__core { animation: none; }
-.loading-chart--fading .loading-star--you {
+.loading-chart--fading .loading-orb--you {
   animation: none;
   opacity: 1;
 }
@@ -1312,7 +1309,7 @@ a.person-star {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
-/* Bow out once the stars have taken over the story. */
+/* Bow out once the orbs have taken over the story. */
 .loading-chart__phase--done {
   opacity: 0;
   transition: opacity 550ms ease;
@@ -1323,10 +1320,10 @@ a.person-star {
 @media (prefers-reduced-motion: reduce) {
   .loading-chart__core { animation: none; }
   .loading-chart__orbit { display: none; } /* a spinning indicator has no still form */
-  .loading-star--you.is-ignited { animation: none; opacity: 1; }
-  /* No bloom/ignite sweep: stars simply appear in their final lit state. The
+  .loading-orb--you.is-ignited { animation: none; opacity: 1; }
+  /* No bloom/ignite sweep: orbs simply appear in their final lit state. The
      climax-done timer in LoadingChart still fires, so the dissolve proceeds. */
-  .loading-star--company { animation: none; }
+  .loading-orb--company { animation: none; }
   .loading-chart__phase { animation: none; }
   .loading-chart--fading { animation-duration: 300ms; }
 }

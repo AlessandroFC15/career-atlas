@@ -50,7 +50,7 @@ There are two interactive actions, both deliberate clicks, with the worker tab d
 ### 3a. Expand one of your companies (load its people)
 Available **only on your own companies.** **(Source mechanism decided in M2.)** The extension navigates the worker tab to a **first-degree people search keyed on the company name** (`/search/results/people/?keywords=<company>&network=["F"]`), not the company's People tab. One query covers both current and past employees, relying on LinkedIn's relevance ranking. It captures the **first page** of connections (name, headline, location, profile link, photo). One page load, triggered by your one click. The search can surface people who never actually worked there; that over-matching is handled in 3b (you simply don't click them, or a click is dismissed).
 
-**(Navigation decided in M2.)** Clicking the company star does not append people to the chain in place: it **drills into that company's galaxy**, a view showing only that company as the major star with its people as a cluster below. A back affordance (and Esc) returns to the atlas. See `m2-plan.md`.
+**(Navigation decided in M2.)** Clicking the company orb does not append people to the chain in place: it **drills into that company's galaxy**, a view showing only that company as the major orb with its people as a cluster below. A back affordance (and Esc) returns to the atlas. See `m2-plan.md`.
 
 ### 3b. Trace a colleague you click *(decided in M3, supersedes the auto-sweep + overlap framing)*
 There is **no automatic sweep and no overlap computation.** **You** are the verifier: you click the people you remember working with, one at a time. For each click, the extension visits that **one** profile (a single page load, human-shaped by construction), and:
@@ -85,7 +85,7 @@ No silent stopping, no infinite spinner.
 
 The user returns to the graph and clicks the next of **their own** companies. The same loop runs. The set of expandable nodes never grows: it is fixed at seed time to the companies you actually worked at.
 
-A useful emergent behavior: when two different colleagues both land at the same onward company, the graph visibly shows convergence ("two people I worked with both ended up at Z"). **(Layout decided in M3.)** Rather than merging them onto one node, the two stars stay at their **true dates** in their own swimlanes and share a **convergence accent** (glow + a faint connecting thread), so the insight and each individual timeline both survive. **(Scoped in M2.)** Because you view one company's galaxy at a time, this convergence is only ever shown **within a single company's galaxy** (two colleagues from the *same* company landing at the same place). Cross-company convergence (colleagues from two *different* of your companies converging) is not surfaced in the drill-in model; a future atlas-wide view could restore it.
+A useful emergent behavior: when two different colleagues both land at the same onward company, the graph visibly shows convergence ("two people I worked with both ended up at Z"). **(Layout decided in M3.)** Rather than merging them onto one node, the two orbs stay at their **true dates** in their own swimlanes and share a **convergence accent** (glow + a faint connecting thread), so the insight and each individual timeline both survive. **(Scoped in M2.)** Because you view one company's galaxy at a time, this convergence is only ever shown **within a single company's galaxy** (two colleagues from the *same* company landing at the same place). Cross-company convergence (colleagues from two *different* of your companies converging) is not surfaced in the drill-in model; a future atlas-wide view could restore it.
 
 ---
 
@@ -113,7 +113,7 @@ It never auto-retries through a challenge. Continuing automated traffic right af
 ### Deduplication
 Same entity, one node, computed deterministically:
 
-- **Company key:** LinkedIn's company entity ID (URN) where present, falling back to a normalized name (lowercased, with suffixes like Inc/Ltd/GmbH and punctuation stripped). So "Acme Inc." and "acme" collapse to one identity. For **onward (Level 2) companies** this is the **accent key** (M3): stars sharing a key across two lanes get the convergence glow + thread, rather than being merged into one node.
+- **Company key:** LinkedIn's company entity ID (URN) where present, falling back to a normalized name (lowercased, with suffixes like Inc/Ltd/GmbH and punctuation stripped). So "Acme Inc." and "acme" collapse to one identity. For **onward (Level 2) companies** this is the **accent key** (M3): orbs sharing a key across two lanes get the convergence glow + thread, rather than being merged into one node.
 - **Seed-chain exception (decided in M1).** Your **own** companies are **not** deduped: a company you worked at in two separate stints renders as **two chain nodes** at its two points in time. Deduping them would fold the chronological timeline back on itself. The company-key above is therefore a Level 2 concern, not a seed concern.
 - **Person key:** profile URL / URN.
 - **No Claude in v1.** The fuzzy judgment layer stays optional and deferred (consistent with `vision.md` §4). It can be added later only if deterministic matching proves insufficient.

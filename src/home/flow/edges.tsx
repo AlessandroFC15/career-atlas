@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react';
 import { getBezierPath, getStraightPath, type EdgeProps } from '@xyflow/react';
 
 /**
- * A line of light between two stars. Direction is implied by a gradient that
+ * A line of light between two orbs. Direction is implied by a gradient that
  * brightens toward the target, with a soft blurred underlay for the glow. Used
  * for both the chain edges and the galaxy spokes.
  */
@@ -20,8 +20,8 @@ function ConstellationEdge({
     | { faded?: boolean; index?: number; color?: string; present?: boolean }
     | undefined;
   const className = 'career-edge' + (meta?.faded ? ' career-edge--faded' : '');
-  // --i = the target star's chain order, so the intro staggers each beam to draw
-  // as its destination star ignites (see styles.css). The whole group fades, so
+  // --i = the target orb's chain order, so the intro staggers each beam to draw
+  // as its destination orb ignites (see styles.css). The whole group fades, so
   // the blurred glow underlay lights up with the sharp beam, not before it.
   const style = { '--i': meta?.index ?? 0 } as CSSProperties;
   // The beam takes its destination company's brand colour (M3 lane beams); the
@@ -72,7 +72,7 @@ function ConstellationEdge({
  * The convergence thread (m3-plan §6d): a faint accent line linking the same
  * company across two colleague lanes ("they both ended up here"). Distinct from
  * the lane beams: fainter, accent-tinted, gently curved, with a soft glow. The
- * leaf stars stay at their true dates; this only connects them.
+ * leaf orbs stay at their true dates; this only connects them.
  */
 function ConvergenceEdge({
   sourceX,

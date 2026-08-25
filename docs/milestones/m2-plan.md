@@ -148,7 +148,7 @@ Pure functions `layoutGalaxyFocus()` and `layoutGalaxyPerson(order, count)` (in 
 - Deterministic and unit-testable: same `(order, count)` ⇒ same coordinates.
 - A single row is fine for ~10; if a future page count makes it too wide, wrapping to multiple rows is a later refinement (not M2). React Flow `fitView` frames the galaxy after the fly-in.
 
-A new **`PersonNode` React component**: a smaller star than the company, photo as the coin (reuse `Avatar` with an initials fallback) and the **name only** (revised: headline/location are captured into the model for M3 but not shown, to keep the cluster clean). Styled as **raw/unverified** (M3 will introduce the verified/pruned visual distinction; M2 just needs "a person star").
+A new **`PersonNode` React component**: a smaller star than the company, photo as its image (reuse `Avatar` with an initials fallback) and the **name only** (revised: headline/location are captured into the model for M3 but not shown, to keep the cluster clean). Styled as **raw/unverified** (M3 will introduce the verified/pruned visual distinction; M2 just needs "a person star").
 
 A **disabled "Show more people" placeholder** sits at the bottom of a ready galaxy: present so its placement is designed now, disabled (not a no-op) so it stays an honest "not yet" rather than a fake affordance. It activates in M6.
 

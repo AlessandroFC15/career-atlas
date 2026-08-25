@@ -52,12 +52,12 @@ export type OnwardNodeData = {
 };
 
 /**
- * Custom Level-0 company node (m1-plan §7): a round company "star" (the logo as
- * a real coin) with the company name below and tenure demoted to a faint line.
+ * Custom Level-0 company node (m1-plan §7): a round company orb (the logo as a
+ * real disc of light) with the company name below and tenure demoted to a faint line.
  * In the atlas it is the clickable, expandable tier; in a galaxy the same
  * component renders the focused company pinned at the top.
  *
- * The visible star + label live in a `.career-node__pop` wrapper so the intro
+ * The visible orb + label live in a `.career-node__pop` wrapper so the intro
  * "ignition" scale never touches the edge handles. Handles carry edges and are
  * invisible; they get explicit ids so the chain (left/right) and the galaxy
  * spokes (bottom to top) never pick the wrong anchor.
@@ -66,7 +66,7 @@ function CompanyNode({ data }: NodeProps<Node<CompanyNodeData>>) {
   const style = {
     width: NODE_WIDTH,
     height: NODE_HEIGHT,
-    '--star-color': data.color ?? 'rgba(140, 158, 235, 0.9)',
+    '--orb-color': data.color ?? 'rgba(140, 158, 235, 0.9)',
     '--i': data.index,
   } as CSSProperties;
   const className =
@@ -84,11 +84,11 @@ function CompanyNode({ data }: NodeProps<Node<CompanyNodeData>>) {
       />
       <div className="career-node__pop">
         {/* The hover lift + post-seed ripple ride on this wrapper, not on
-            .career-star (which runs the infinite starfloat) nor .career-node
+            .career-orb (which runs the infinite orbfloat) nor .career-node
             (which carries the edge handles), so the transforms compose and the
             beams stay pinned to the orb center (143ece1). See styles.css §M2. */}
-        <div className="career-star-wrap">
-          <div className="career-star" style={{ width: ORB, height: ORB }}>
+        <div className="career-orb-wrap">
+          <div className="career-orb" style={{ width: ORB, height: ORB }}>
             <CompanyLogo dataUrl={data.logoDataUrl} name={data.name} size={LOGO} />
           </div>
         </div>
@@ -160,7 +160,7 @@ function OrbOpenMark() {
 }
 
 /**
- * A raw Level 1 person (m2-plan §6): a small star with the connection's photo.
+ * A raw Level 1 person (m2-plan §6): a small orb with the connection's photo.
  * The name is hidden and floats in on hover, so the row packs tight. Styled as
  * unverified; M3 introduces the verified/pruned visual language. The `--i` var
  * staggers the galaxy reveal.
@@ -180,7 +180,7 @@ function PersonNode({ data }: NodeProps<Node<PersonNodeData>>) {
     <>
       <Avatar dataUrl={data.photoDataUrl} name={data.name} size={PERSON_ORB} />
       {data.tracing && (
-        <div className="person-star__spinner">
+        <div className="person-orb__spinner">
           <Spinner />
         </div>
       )}
@@ -208,7 +208,7 @@ function PersonNode({ data }: NodeProps<Node<PersonNodeData>>) {
           // the whole orb opens the colleague's profile, mirroring the onward leaf.
           // stopPropagation keeps React Flow's onNodeClick from firing underneath.
           <a
-            className="person-star"
+            className="person-orb"
             style={orbStyle}
             href={orbLink}
             target="_blank"
@@ -221,7 +221,7 @@ function PersonNode({ data }: NodeProps<Node<PersonNodeData>>) {
             <OrbOpenMark />
           </a>
         ) : (
-          <div className="person-star" style={orbStyle}>
+          <div className="person-orb" style={orbStyle}>
             {orb}
           </div>
         )}
@@ -250,8 +250,8 @@ function PersonNode({ data }: NodeProps<Node<PersonNodeData>>) {
 }
 
 /**
- * A Level-2 onward "leaf" (m3-plan §6e): a small star with the company logo as
- * the coin, sitting on a colleague's lane at its join date. Never expandable
+ * A Level-2 onward "leaf" (m3-plan §6e): a small orb showing the company logo,
+ * sitting on a colleague's lane at its join date. Never expandable
  * (no click handler). Companies reached by ≥2 colleagues carry a convergence
  * accent. Name floats in on hover, like the person orbs.
  */
@@ -260,7 +260,7 @@ function OnwardNode({ data }: NodeProps<Node<OnwardNodeData>>) {
     width: ONWARD_NODE_WIDTH,
     '--i': data.index,
     // Monochrome logos (black/white) sample to no hue; fall back to a muted,
-    // low-luminance cool grey so they read as a quiet neutral star and recede
+    // low-luminance cool grey so they read as a quiet neutral orb and recede
     // next to the saturated brands, instead of a bright white beacon on black.
     '--leaf-color': data.color ?? 'rgb(150, 160, 182)',
   } as CSSProperties;
@@ -285,7 +285,7 @@ function OnwardNode({ data }: NodeProps<Node<OnwardNodeData>>) {
           // mark is an "opens elsewhere" hint inside it, so its overhang clicks
           // through to the same link rather than falling into the void.
           <a
-            className="onward-star"
+            className="onward-orb"
             style={{ width: ONWARD_ORB, height: ONWARD_ORB }}
             href={data.companyUrl}
             target="_blank"
@@ -299,7 +299,7 @@ function OnwardNode({ data }: NodeProps<Node<OnwardNodeData>>) {
           </a>
         ) : (
           <div
-            className="onward-star"
+            className="onward-orb"
             style={{ width: ONWARD_ORB, height: ONWARD_ORB }}
           >
             <CompanyLogo dataUrl={data.logoDataUrl} name={data.name} size={ONWARD_ORB} />
@@ -319,7 +319,7 @@ function OnwardNode({ data }: NodeProps<Node<OnwardNodeData>>) {
 
 export type GalaxyTitleData = { companyName?: string };
 
-/** The galaxy heading, placed in world space between the focused star and the
+/** The galaxy heading, placed in world space between the focused orb and the
  *  people row so it stays "between the logo and the faces" as the camera moves
  *  (m2). Non-interactive: clicks pass through to the canvas. */
 function GalaxyTitleNode({ data }: NodeProps<Node<GalaxyTitleData>>) {
@@ -362,7 +362,7 @@ function NowAnchorNode() {
 }
 
 /**
- * The "show more people" affordance, as the next star in the row: a small glassy
+ * The "show more people" affordance, as the next orb in the row: a small glassy
  * orb (a dashed outline holding an ellipsis of three tiny star-dots) sitting just
  * past the last face, so "more here" lives where the eye already is. Click loads
  * the next page; while it
@@ -370,7 +370,7 @@ function NowAnchorNode() {
  * until a load returns empty), so the orb just says "more", not a number.
  *
  * `--i` is its slot in the people row (after the last face), so it staggers in
- * as the LAST star of the reveal rather than popping in immediately.
+ * as the LAST orb of the reveal rather than popping in immediately.
  */
 function LoadMoreNode({ data }: NodeProps<Node<{ index?: number }>>) {
   const [loading, setLoading] = useState(false);
@@ -390,7 +390,7 @@ function LoadMoreNode({ data }: NodeProps<Node<{ index?: number }>>) {
       title="Show more people"
     >
       <div
-        className="loadmore-star"
+        className="loadmore-orb"
         style={{ width: PERSON_ORB, height: PERSON_ORB }}
       >
         {loading ? (

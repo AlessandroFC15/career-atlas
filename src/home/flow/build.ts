@@ -28,7 +28,7 @@ import {
 import type { CompanyNodeData, OnwardNodeData, PersonNodeData } from './nodes';
 
 /** A company's full LinkedIn URL from its (possibly relative) stored link, so
- *  the focus star can offer an "open on LinkedIn" badge. */
+ *  the focus orb can offer an "open on LinkedIn" badge. */
 function linkedInUrl(companyUrl?: string): string | undefined {
   if (!companyUrl) return undefined;
   if (/^https?:\/\//i.test(companyUrl)) return companyUrl;
@@ -78,20 +78,20 @@ export function buildAtlas(
     sourceHandle: 'r',
     targetHandle: 'l',
     // `faded` dissolves the beams with the siblings on drill-in. `index` is the
-    // target star's chain order, so the intro can draw each beam in step with
-    // the star it points at (the edge layer can't inherit the node's --i).
+    // target orb's chain order, so the intro can draw each beam in step with
+    // the orb it points at (the edge layer can't inherit the node's --i).
     data: { faded: fading, index: orderById.get(e.target) ?? 0 },
   }));
   return { nodes, edges };
 }
 
-/** Build one company's galaxy: focused star, the candidate cluster, and (M3)
+/** Build one company's galaxy: focused orb, the candidate cluster, and (M3)
  *  the swimlane band of traced colleagues below it.
  *
  * Everything is positioned RELATIVE TO THE COMPANY'S ATLAS COORDINATES (`base`),
- * not a fresh origin, so the focused star occupies the exact same world point in
+ * not a fresh origin, so the focused orb occupies the exact same world point in
  * the galaxy as it did in the chain. That is what makes the drill-in a smooth
- * fly-in rather than a teleport: the camera moves, the star does not.
+ * fly-in rather than a teleport: the camera moves, the orb does not.
  *
  * People split by trace status (m3-plan §3, §6): 'raw'/'dismissed' stay in the
  * candidate cluster (re-indexed so a pulled-out orb's gap closes); 'traced'
@@ -134,7 +134,7 @@ export function buildGalaxy(
     .filter((p) => p.status === 'traced')
     .sort((a, b) => (b.tracedAt ?? 0) - (a.tracedAt ?? 0));
 
-  // The "show more" orb (added below) is the next star in the row, so it counts
+  // The "show more" orb (added below) is the next orb in the row, so it counts
   // as a slot when centering: faces + orb are centered together, otherwise the
   // row leans left as the orb tacks on past the centered faces.
   //
@@ -177,7 +177,7 @@ export function buildGalaxy(
     };
   });
 
-  // The "show more people" orb: the next star in the row, in the slot right after
+  // The "show more people" orb: the next orb in the row, in the slot right after
   // the last face (centered together with the faces, so the row stays balanced as
   // candidates are traced out). Placed here, not as a screen-pinned pill, so
   // "more" reads right where the cluster ends. When the cluster is empty (every
@@ -200,7 +200,7 @@ export function buildGalaxy(
             width: PERSON_NODE_WIDTH,
             height: PERSON_ORB,
             // The orb's slot in the row (right after the last face), so its reveal
-            // staggers in as the LAST star, not all at once before the faces.
+            // staggers in as the LAST orb, not all at once before the faces.
             data: { index: cluster.length },
             draggable: false,
             // Selectable keeps pointer-events on for the orb's own click/hover;
@@ -367,12 +367,12 @@ export function buildGalaxy(
     selectable: false,
   };
 
-  // No people at all yet (loading): just the star + the bounds reserve.
+  // No people at all yet (loading): just the orb + the bounds reserve.
   if (people.length === 0) {
     return { nodes: [focusNode, reserveNode], edges: [] };
   }
 
-  // The title sits between the star and the row. Its origin is the row center;
+  // The title sits between the orb and the row. Its origin is the row center;
   // the node centers itself there via CSS (translateX(-50%)), so it can size to
   // its (one-line) text without us knowing the width here.
   const titleNode: Node<{ companyName?: string }> = {

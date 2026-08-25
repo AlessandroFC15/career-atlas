@@ -66,7 +66,7 @@ export function deriveGraph(seed: Seed): CareerGraph {
 
 // Layout constants, tuned for legibility against the node dimensions in
 // CareerGraph.tsx (orb ~84). COL_GAP > orb width leaves runway for the edge
-// beam between stars without crowding the constellation.
+// beam between orbs without crowding the constellation.
 export const COL_GAP = 220;
 
 /**
@@ -79,13 +79,13 @@ export function layout(order: number): { x: number; y: number } {
 }
 
 // --- M2: galaxy (drill-in) layout and person-node construction (m2-plan §4,
-// §6). A galaxy shows one focused company star with its people in a vertical
+// §6). A galaxy shows one focused company orb with its people in a vertical
 // column below it. Pure and deterministic, like layout() above. ---
 
-/** Gap below the focused star to the people row. The title sits between them and
- *  the star reads as anchored near the top. */
+/** Gap below the focused orb to the people row. The title sits between them and
+ *  the orb reads as anchored near the top. */
 export const GALAXY_DROP = 250;
-/** Gap below the focused star to the title (between the star and the row). Kept
+/** Gap below the focused orb to the title (between the orb and the row). Kept
  *  close to the row so the heading reads as the cluster's label. */
 export const GALAXY_TITLE_DROP = 158;
 /** Horizontal gap between adjacent people in the row. Tight, since names are
@@ -102,7 +102,7 @@ export function layoutGalaxyFocus(): { x: number; y: number } {
 
 /**
  * Person at position `order` of `count`: a single horizontal row centered below
- * the focused star, so the spokes fan out symmetrically from the company.
+ * the focused orb, so the spokes fan out symmetrically from the company.
  */
 export function layoutGalaxyPerson(
   order: number,
@@ -198,7 +198,7 @@ export function deriveOnward(
 }
 
 // Swimlane band geometry (m3-plan §6). Coordinates are RELATIVE to the galaxy's
-// row center (x) and the focused star's base y, exactly like layoutGalaxyPerson,
+// row center (x) and the focused orb's base y, exactly like layoutGalaxyPerson,
 // so build.ts can offset them the same way. The band sits below the candidate
 // cluster; lanes stack downward in click order.
 /** Top of the band, below the people cluster row (GALAXY_DROP). */

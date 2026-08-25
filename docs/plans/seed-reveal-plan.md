@@ -15,7 +15,7 @@ When the user clicks **"Seed my graph"** on a fresh (or re-seeded) profile:
 1. **No spinner appears anywhere in the seed path.** The deep-space canvas (same `--bg`, same far-field starfield) is present from the first frame; the loading sequence lives inside that void.
 2. A single line of **phase text** crossfades at the bottom through the seed's real phases. **No numbers, no counts** in the copy.
 3. The void responds to real progress:
-   - A single **"you" star** ignites at center when the profile header is read; it takes the avatar coin once that image caches.
+   - A single **"you" star** ignites at center when the profile header is read; it takes the avatar photo once that image caches.
    - A **scatter of dim company stars** blooms once parsing returns the real company list, **one star per company actually found**.
    - Each company star **sharpens / warms** as its own logo actually finishes caching.
 4. On completion, the loading scatter **cross-dissolves** into the `CareerGraph` mount as M1's staggered ignition fires, so the transition reads as one continuous birth rather than a screen swap.
@@ -45,7 +45,7 @@ The seed already moves through five genuinely sequential, meaningful phases. We 
 | Read name / photo | **One bright star ignites at center** — that is *you*, the anchor of the chart. | Reading your name and photo… |
 | Open experience list | The "you" star breathes and holds. | Opening your full experience list… |
 | Read experience | **A scatter of dim stars blooms** around you, one per company actually parsed. Not lit, not connected. | Reading your experience… |
-| Cache photos / logos | The "you" star takes its avatar coin; each company star **sharpens** as its logo really caches. | Caching photos and logos… |
+| Cache photos / logos | The "you" star takes its avatar photo; each company star **sharpens** as its logo really caches. | Caching photos and logos… |
 | Done → handoff | The scatter **cross-dissolves** into `CareerGraph` as the staggered ignition fires and beams connect the chain. | (graph) |
 
 By the time loading ends, the chart is already half-born. There is nothing to "load into": the load *was* the birth.
@@ -111,10 +111,10 @@ Contained edits in `orchestrator.ts`, no behavior change to parsing or persisten
 `src/home/LoadingChart.tsx`, driven by the derived seeding state.
 
 - Renders **inside the existing cosmic backdrop** (reuse `Cosmos` / the same CSS vars and star/glow rules so it is visually identical to the graph layer). No React Flow here; plain absolutely-positioned divs are enough for a static scatter.
-- **The "you" star:** a single glowing point at center. Dim during "opening-profile", ignites on "reading-header", takes the avatar coin (reuse `Avatar` with its initials fallback) once `cachedCount` indicates the avatar settled.
+- **The "you" star:** a single glowing point at center. Dim during "opening-profile", ignites on "reading-header", takes the avatar photo (reuse `Avatar` with its initials fallback) once `cachedCount` indicates the avatar settled.
 - **Company stars:** when `companyCount` becomes known, render that many dim star points in a **deterministic scatter** around center (positions seeded by index, e.g. a golden-angle spiral, so nothing jitters on re-render; no `Math.random`). As `cachedCount` climbs, the first *k* stars switch from dim to sharpened. (Mapping by order is fine; the user cannot tell which physical logo finished, only that the field is warming up.)
 - **Phase text:** one line near the bottom, crossfading on phase change, from a `PHASE_TEXT: Record<SeedProgress['phase'], string>` map. Copy is the §3 column, tunable in one place.
-- **Motion vocabulary (new CSS keyframes in `styles.css`):** `star-ignite` (scale + glow in, with the same soft overshoot family as M1's intro), `star-breathe` (slow glow pulse for the holding "you" star), `scatter-bloom` (dim points fading/scaling in), `star-sharpen` (dim→warm). All slow and soft; reuse `--accent`, `--glow`.
+- **Motion vocabulary (new CSS keyframes in `styles.css`):** `orb-ignite` (scale + glow in, with the same soft overshoot family as M1's intro), `orb-breathe` (slow glow pulse for the holding "you" star), `scatter-bloom` (dim points fading/scaling in), `star-sharpen` (dim→warm). All slow and soft; reuse `--accent`, `--glow`.
 
 ---
 

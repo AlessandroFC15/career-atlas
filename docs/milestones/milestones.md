@@ -18,7 +18,7 @@ Install the extension, click its icon, the home tab opens. Click **"Seed my grap
 
 ## M1 — Plot the seed ✅
 
-*Status: shipped (commit `debbe5a`). Detailed plan in `m1-plan.md`. Rendered with React Flow; the seed is materialized into a separate `graph` store. Visuals went beyond the brief into a cosmic star-chart treatment (see `CLAUDE.md`).*
+*Status: shipped (commit `debbe5a`). Detailed plan in `m1-plan.md`. Rendered with React Flow; the seed is materialized into a separate `graph` store. Visuals went beyond the brief into a cosmic orb-chart treatment (see `CLAUDE.md`).*
 
 Same data, now rendered as an actual graph: your companies as a **horizontal career chain** (chronological, each linked to the next), as dormant **Level 0 nodes**. You appear in a header bar, not as a graph node. Reopening the extension shows the same graph from local storage instead of re-reading.
 
@@ -28,7 +28,7 @@ Same data, now rendered as an actual graph: your companies as a **horizontal car
 
 ## M2 — Expand a company into its people ✅
 
-*Status: shipped (commit `1fcd75f`). Detailed plan in `m2-plan.md`.* Click a Level 0 node and **drill into that company's galaxy** (the chain fades, the camera flies into the focused star). The worker tab loads a **first-degree people search keyed on the company name** (`network=["F"]`, one query instead of a current/past company facet), captures the **first page** (~10), and plots those people as raw **Level 1 nodes** in a horizontal row below the company (names on hover). Not confirmed yet, just the initial candidate list. A back affordance (and Esc) returns to the atlas.
+*Status: shipped (commit `1fcd75f`). Detailed plan in `m2-plan.md`.* Click a Level 0 node and **drill into that company's galaxy** (the chain fades, the camera flies into the focused orb). The worker tab loads a **first-degree people search keyed on the company name** (`network=["F"]`, one query instead of a current/past company facet), captures the **first page** (~10), and plots those people as raw **Level 1 nodes** in a horizontal row below the company (names on hover). Not confirmed yet, just the initial candidate list. A back affordance (and Esc) returns to the atlas.
 
 **Proves:** the people-search parser, the drill-in galaxy navigation, and the one-page-per-click expansion model (plus the graph store now holding non-derivable expansion data).
 
@@ -36,7 +36,7 @@ Same data, now rendered as an actual graph: your companies as a **horizontal car
 
 ## M3 — Trace where a colleague went ✅
 
-*Status: shipped (commit `27772dc`, with follow-up polish). Detailed plan in `m3-plan.md`.* From an expanded galaxy (M2), **you click the people you actually worked with**, one at a time. Each click visits that one person's profile, parses their dated tenure (reusing the seed experience parser), anchors on the shared company, and plots the stints they took **after they left** it as **Level 2 leaf nodes** (never expandable). The clicked orb **animates out of the candidate cluster into its own swimlane**, where their onward stints sit on a **continuous real-time axis**. When two colleagues landed at the same place, a **convergence accent** (shared glow + connecting thread) links the stars at their true dates. A profile that doesn't list the company at all is a keyword false positive: the orb returns to the cluster, dimmed.
+*Status: shipped (commit `27772dc`, with follow-up polish). Detailed plan in `m3-plan.md`.* From an expanded galaxy (M2), **you click the people you actually worked with**, one at a time. Each click visits that one person's profile, parses their dated tenure (reusing the seed experience parser), anchors on the shared company, and plots the stints they took **after they left** it as **Level 2 leaf nodes** (never expandable). The clicked orb **animates out of the candidate cluster into its own swimlane**, where their onward stints sit on a **continuous real-time axis**. When two colleagues landed at the same place, a **convergence accent** (shared glow + connecting thread) links the orbs at their true dates. A profile that doesn't list the company at all is a keyword false positive: the orb returns to the cluster, dimmed.
 
 This **replaces** the originally-planned auto-overlap-prune M3 *and* absorbs the old "onward workplaces" M4. **You** are the verifier now (clicking confirms the relationship), so the speculative bulk profile sweep and the overlap date-interval logic are cut.
 
