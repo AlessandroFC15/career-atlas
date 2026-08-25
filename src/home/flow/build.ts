@@ -94,16 +94,16 @@ export function buildAtlas(
  * fly-in rather than a teleport: the camera moves, the star does not.
  *
  * People split by trace status (m3-plan §3, §6): 'raw'/'dismissed' stay in the
- * candidate cluster (re-indexed so a pulled-out orb's gap closes); 'expanded'
+ * candidate cluster (re-indexed so a pulled-out orb's gap closes); 'traced'
  * become lane faces in the band, each with its onward leaves on the time axis.
- * `now` is injected (the layout stays pure); `expandingIds` marks orbs mid-trace
+ * `now` is injected (the layout stays pure); `tracingIds` marks orbs mid-trace
  * so they show a spinner in place. */
 export function buildGalaxy(
   focus: GraphNode,
   people: PersonNodeModel[],
   colors: Record<string, string>,
   now: DateParts,
-  expandingIds: Set<string> = new Set(),
+  tracingIds: Set<string> = new Set(),
   onwardColors: Record<string, string> = {},
 ): { nodes: Node[]; edges: Edge[] } {
   const base = layout(focus.order);
@@ -127,12 +127,12 @@ export function buildGalaxy(
   const rowCenterX = base.x + NODE_WIDTH / 2;
 
   // Candidates (still in the cluster) vs traced colleagues (in the band). Newest
-  // trace on top: sort by expandedAt DESCENDING, so a fresh lane appears just
+  // trace on top: sort by tracedAt DESCENDING, so a fresh lane appears just
   // under the cluster and pushes the earlier ones down.
-  const cluster = people.filter((p) => p.status !== 'expanded');
-  const expanded = people
-    .filter((p) => p.status === 'expanded')
-    .sort((a, b) => (b.expandedAt ?? 0) - (a.expandedAt ?? 0));
+  const cluster = people.filter((p) => p.status !== 'traced');
+  const traced = people
+    .filter((p) => p.status === 'traced')
+    .sort((a, b) => (b.tracedAt ?? 0) - (a.tracedAt ?? 0));
 
   // The "show more" orb (added below) is the next star in the row, so it counts
   // as a slot when centering: faces + orb are centered together, otherwise the
@@ -170,7 +170,7 @@ export function buildGalaxy(
         photoDataUrl: p.photoDataUrl,
         index: i,
         status: p.status,
-        expanding: expandingIds.has(p.id),
+        tracing: tracingIds.has(p.id),
         companyName: focus.name,
       },
       draggable: false,
@@ -210,10 +210,10 @@ export function buildGalaxy(
         ];
       })();
 
-  // The swimlane band: one lane per expanded colleague (face + onward leaves),
+  // The swimlane band: one lane per traced colleague (face + onward leaves),
   // lane beams in date order, and convergence threads where ≥2 lanes share a
   // destination (m3-plan §6).
-  const sw = layoutSwimlanes(focus, expanded, now);
+  const sw = layoutSwimlanes(focus, traced, now);
   const laneNodes: Node[] = [];
   const laneEdges: Edge[] = [];
   const leafId = (laneIndex: number, leafIndex: number) =>
@@ -237,7 +237,7 @@ export function buildGalaxy(
         name: lane.person.name,
         photoDataUrl: lane.person.photoDataUrl,
         index: lane.laneIndex,
-        status: 'expanded',
+        status: 'traced',
         companyName: focus.name,
         // The face is a link to the colleague's profile (the orb's click is
         // otherwise dead once traced).
@@ -355,7 +355,7 @@ export function buildGalaxy(
   // An invisible bounds-extender below the lowest content (the last lane when
   // there are lanes, else the M2 reserve). Keeps fitView framing the whole
   // composition; reframes as the band grows.
-  const reserveY = expanded.length
+  const reserveY = traced.length
     ? base.y + sw.bottomY + LANE_GAP
     : base.y + GALAXY_DROP + GALAXY_RESERVE_BELOW;
   const reserveNode: Node = {

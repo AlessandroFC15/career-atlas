@@ -388,12 +388,12 @@ export class TraceError extends Error {
 
 /**
  * The outcome of tracing one colleague. `dismissed` is a keyword false positive
- * (their profile never lists this company); `expanded` carries the onward
+ * (their profile never lists this company); `traced` carries the onward
  * trajectory (possibly empty = terminal: still there, or nothing after).
  */
 export type TraceResult =
   | { status: 'dismissed' }
-  | { status: 'expanded'; onward: OnwardStint[]; expandedAt: number };
+  | { status: 'traced'; onward: OnwardStint[]; tracedAt: number };
 
 export interface TraceRunHooks {
   onProgress?: (message: string) => void;
@@ -481,17 +481,17 @@ export async function runTracePerson(
 
     // Stamp the trace time so lanes stack in the order colleagues were traced
     // (click order), persisted so re-entry restores the same order.
-    const expandedAt = Date.now();
+    const tracedAt = Date.now();
     await saveTrace(company.id, person.id, {
-      status: 'expanded',
+      status: 'traced',
       onward: withLogos,
-      expandedAt,
+      tracedAt,
     });
 
     if (workerTabId !== undefined) {
       chrome.tabs.remove(workerTabId).catch(() => {});
     }
-    return { status: 'expanded', onward: withLogos, expandedAt };
+    return { status: 'traced', onward: withLogos, tracedAt };
   } catch (err) {
     console.error('[career-atlas] trace failed:', err);
     if (err instanceof TraceError) {

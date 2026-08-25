@@ -353,7 +353,7 @@ html, body {
    orbs that do nothing on click, so only the truly clickable ones (atlas stars,
    raw/dismissed candidate orbs, the "show more" orb) read as clickable. */
 .career-graph[data-mode='galaxy'] .react-flow__node-company { cursor: default; }
-.person-node[data-status='expanded'] { cursor: default; }
+.person-node[data-status='traced'] { cursor: default; }
 .onward-node { cursor: default; }
 
 /* The orbs that are links: the onward leaf opens its company, a traced lane face
@@ -579,7 +579,7 @@ a.person-star {
    as instant). `backwards` holds the orb invisible through that delay. Quicker
    and tighter than the chain's ceremony (450ms/1650ms): a quick wave.
 
-   Scoped by data-status so a traced colleague (status expanded) never inherits
+   Scoped by data-status so a traced colleague (status traced) never inherits
    this delayed reveal: it is already on screen and just slides into its lane, so
    it must not blink back to opacity 0 and wait out the delay again. */
 .person-node[data-status='raw'] .person-node__pop,
@@ -731,14 +731,14 @@ a.person-star {
   100% { opacity: 0; }
 }
 /* While tracing, hide the hover name so it can't collide with the caption. */
-.person-node[data-expanding] .person-node__name { display: none; }
+.person-node[data-tracing] .person-node__name { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .person-node__progress { animation: none; opacity: 0.7; }
 }
 
-/* An expanded colleague settled as a lane face: a slightly stronger corona than
+/* A traced colleague settled as a lane face: a slightly stronger corona than
    a raw candidate, so the face reads as the anchor of its trajectory. */
-.person-node[data-status='expanded'] .person-star {
+.person-node[data-status='traced'] .person-star {
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.3),
     0 6px 16px rgba(0, 0, 0, 0.45),

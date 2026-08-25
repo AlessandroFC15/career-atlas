@@ -29,12 +29,12 @@ export type PersonNodeData = {
   name: string;
   photoDataUrl?: string;
   index: number;
-  // M3: trace state. 'raw' = candidate (clickable), 'expanded' = settled into a
+  // M3: trace state. 'raw' = candidate (clickable), 'traced' = settled into a
   // lane (the face), 'dismissed' = false positive (dimmed, hover hint).
-  status?: 'raw' | 'expanded' | 'dismissed';
-  expanding?: boolean; // a trace is in flight: spinner over the orb
+  status?: 'raw' | 'traced' | 'dismissed';
+  tracing?: boolean; // a trace is in flight: spinner over the orb
   companyName?: string; // for the dismissed hint ("didn't work at <company>")
-  terminal?: boolean; // expanded but no onward: a quiet "still at <company>"
+  terminal?: boolean; // traced but no onward: a quiet "still at <company>"
   // The colleague's LinkedIn profile, on lane faces only: a traced face has no
   // click of its own left (trace already happened), so the orb becomes the link.
   profileUrl?: string;
@@ -167,7 +167,7 @@ function OrbOpenMark() {
  */
 function PersonNode({ data }: NodeProps<Node<PersonNodeData>>) {
   const status = data.status ?? 'raw';
-  const traceMessage = useTraceMessage(!!data.expanding);
+  const traceMessage = useTraceMessage(!!data.tracing);
   const style = {
     width: PERSON_NODE_WIDTH,
     '--i': data.index,
@@ -175,11 +175,11 @@ function PersonNode({ data }: NodeProps<Node<PersonNodeData>>) {
   const orbStyle = { width: PERSON_ORB, height: PERSON_ORB };
   // Only a lane face links out. A raw candidate's click belongs to trace, and
   // that is the more valuable action on it.
-  const orbLink = status === 'expanded' ? data.profileUrl : undefined;
+  const orbLink = status === 'traced' ? data.profileUrl : undefined;
   const orb = (
     <>
       <Avatar dataUrl={data.photoDataUrl} name={data.name} size={PERSON_ORB} />
-      {data.expanding && (
+      {data.tracing && (
         <div className="person-star__spinner">
           <Spinner />
         </div>
@@ -190,10 +190,10 @@ function PersonNode({ data }: NodeProps<Node<PersonNodeData>>) {
     <div
       className="person-node"
       data-status={status}
-      data-expanding={data.expanding ? '' : undefined}
+      data-tracing={data.tracing ? '' : undefined}
       style={style}
     >
-      {/* A right-edge source handle so an expanded face can beam to its first
+      {/* A right-edge source handle so a traced face can beam to its first
           onward leaf. Invisible (styled tiny); the cluster orbs never use it. */}
       <Handle
         id="r"
@@ -239,7 +239,7 @@ function PersonNode({ data }: NodeProps<Node<PersonNodeData>>) {
         )}
         {/* A traced colleague with no onward path: a quiet always-on caption so
             the lone face reads as intentional, not broken. */}
-        {status === 'expanded' && data.terminal && (
+        {status === 'traced' && data.terminal && (
           <span className="person-node__caption">
             still at {data.companyName ?? 'here'}
           </span>

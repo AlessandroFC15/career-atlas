@@ -116,13 +116,13 @@ export interface PersonNode {
   photoUrl?: string;
   photoDataUrl?: string; // cached base64, what the UI renders
   // 'raw': surfaced by M2, not yet traced (a candidate; also the resting state
-  //   after a retryable error). 'expanded': traced, anchored on the shared
-  //   company; `onward` present (possibly empty = terminal). 'dismissed': traced
+  //   after a retryable error). 'traced': anchored on the shared company;
+  //   `onward` present (possibly empty = terminal). 'dismissed': traced
   //   but their profile does not list this company (a keyword false positive),
   //   recoverable by re-clicking. (M3 §4)
-  status: 'raw' | 'expanded' | 'dismissed';
-  onward?: OnwardStint[]; // set when status === 'expanded' (empty = terminal)
-  expandedAt?: number; // epoch ms when traced: lanes stack in this (click) order
+  status: 'raw' | 'traced' | 'dismissed';
+  onward?: OnwardStint[]; // set when status === 'traced' (empty = terminal)
+  tracedAt?: number; // epoch ms when traced: lanes stack in this (click) order
   order: number; // column position within the galaxy
 }
 

@@ -34,7 +34,7 @@ function Flow({
   view,
   onCompanyClick,
   onPersonClick,
-  expandingIds,
+  tracingIds,
   onBack,
   animateIntro,
 }: {
@@ -42,7 +42,7 @@ function Flow({
   view: GraphView;
   onCompanyClick: (companyId: string) => void;
   onPersonClick: (personId: string) => void;
-  expandingIds: Set<string>;
+  tracingIds: Set<string>;
   onBack: () => void;
   animateIntro: boolean;
 }) {
@@ -104,7 +104,7 @@ function Flow({
     const people = graph.expansions?.[phase.id]?.people ?? [];
     const seen = new Map<string, string | undefined>();
     for (const p of people) {
-      if (p.status !== 'expanded' || !p.onward) continue;
+      if (p.status !== 'traced' || !p.onward) continue;
       for (const s of p.onward) {
         const key = onwardAccentKey(s);
         if (!seen.has(key)) seen.set(key, s.logoDataUrl);
@@ -121,11 +121,11 @@ function Flow({
       const focus = graph.nodes.find((n) => n.id === phase.id);
       const people = graph.expansions?.[phase.id]?.people ?? [];
       return focus
-        ? buildGalaxy(focus, people, colors, now, expandingIds, onwardColors)
+        ? buildGalaxy(focus, people, colors, now, tracingIds, onwardColors)
         : atlasNormal;
     }
     return atlasNormal;
-  }, [phase, graph, colors, atlasNormal, now, expandingIds, onwardColors]);
+  }, [phase, graph, colors, atlasNormal, now, tracingIds, onwardColors]);
 
   const inGalaxy = phase.k === 'galaxy';
   const peopleCount =
@@ -136,7 +136,7 @@ function Flow({
   // patched in place, so the total count alone wouldn't change).
   const laneCount =
     phase.k === 'galaxy'
-      ? graph.expansions?.[phase.id]?.people?.filter((p) => p.status === 'expanded')
+      ? graph.expansions?.[phase.id]?.people?.filter((p) => p.status === 'traced')
           .length ?? 0
       : 0;
 
@@ -182,7 +182,7 @@ function Flow({
           if (phase.k === 'atlas' && node.type === 'company') {
             onCompanyClick(node.id);
           } else if (phase.k === 'galaxy' && node.type === 'person') {
-            // Trace this colleague (App no-ops if already expanded; a dismissed
+            // Trace this colleague (App no-ops if already traced; a dismissed
             // orb retries). Onward leaves are type 'onward' → not clickable.
             onPersonClick(node.id);
           }
@@ -244,7 +244,7 @@ export function CareerGraph({
   view,
   onCompanyClick,
   onPersonClick,
-  expandingIds,
+  tracingIds,
   onBack,
   animateIntro = false,
 }: {
@@ -252,7 +252,7 @@ export function CareerGraph({
   view: GraphView;
   onCompanyClick: (companyId: string) => void;
   onPersonClick: (personId: string) => void;
-  expandingIds: Set<string>;
+  tracingIds: Set<string>;
   onBack: () => void;
   animateIntro?: boolean;
 }) {
@@ -263,7 +263,7 @@ export function CareerGraph({
         view={view}
         onCompanyClick={onCompanyClick}
         onPersonClick={onPersonClick}
-        expandingIds={expandingIds}
+        tracingIds={tracingIds}
         onBack={onBack}
         animateIntro={animateIntro}
       />

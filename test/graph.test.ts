@@ -342,7 +342,7 @@ function personWithOnward(
     vanity: id,
     profileUrl: `https://www.linkedin.com/in/${id}/`,
     name: id,
-    status: 'expanded',
+    status: 'traced',
     onward,
     order: 0,
   };

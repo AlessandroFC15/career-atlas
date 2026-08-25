@@ -2,6 +2,7 @@ import type {
   CareerGraph,
   CompanyExpansion,
   OnwardStint,
+  PersonNode,
   Seed,
 } from './types';
 
@@ -21,7 +22,37 @@ export async function saveSeed(seed: Seed): Promise<void> {
 
 export async function loadGraph(): Promise<CareerGraph | null> {
   const out = await chrome.storage.local.get(GRAPH_KEY);
-  return (out[GRAPH_KEY] as CareerGraph | undefined) ?? null;
+  const graph = (out[GRAPH_KEY] as CareerGraph | undefined) ?? null;
+  return graph ? migrateTracedStatus(graph) : null;
+}
+
+/**
+ * Legacy shape: M3 first shipped a traced person as `status: 'expanded'` with
+ * `expandedAt`. "Expand" now belongs to companies only, so a stored graph is
+ * mapped to `'traced'` / `tracedAt` on the way out. Without this, an already
+ * explored galaxy loses its swimlanes on load (the people match neither status
+ * and fall back into the candidate cluster) with no way back but a re-seed.
+ */
+function migrateTracedStatus(graph: CareerGraph): CareerGraph {
+  if (!graph.expansions) return graph;
+  let changed = false;
+  const expansions: Record<string, CompanyExpansion> = {};
+  for (const [companyId, expansion] of Object.entries(graph.expansions)) {
+    expansions[companyId] = {
+      ...expansion,
+      people: expansion.people.map((p) => {
+        const legacy = p as Omit<PersonNode, 'status'> & {
+          status: PersonNode['status'] | 'expanded';
+          expandedAt?: number;
+        };
+        if (legacy.status !== 'expanded') return p;
+        changed = true;
+        const { expandedAt, ...rest } = legacy;
+        return { ...rest, status: 'traced', tracedAt: p.tracedAt ?? expandedAt };
+      }),
+    };
+  }
+  return changed ? { ...graph, expansions } : graph;
 }
 
 export async function saveGraph(graph: CareerGraph): Promise<void> {
@@ -57,7 +88,7 @@ export async function saveExpansion(
 export async function saveTrace(
   companyId: string,
   personId: string,
-  patch: { status: 'expanded' | 'dismissed'; onward?: OnwardStint[]; expandedAt?: number },
+  patch: { status: 'traced' | 'dismissed'; onward?: OnwardStint[]; tracedAt?: number },
 ): Promise<CareerGraph | null> {
   const graph = await loadGraph();
   if (!graph) return null;

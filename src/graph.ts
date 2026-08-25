@@ -321,7 +321,7 @@ function spaceLeaves(xs: number[], gap: number): number[] {
 }
 
 /**
- * Lay out the swimlane band (m3-plan §6): one lane per expanded colleague, in
+ * Lay out the swimlane band (m3-plan §6): one lane per traced colleague, in
  * the given order (click order), on a continuous time axis fixed to
  * `[focus.start, now]`. Onward leaves sit at their true start dates, nudged apart
  * only where they would otherwise collide (`spaceLeaves`); companies
@@ -330,13 +330,13 @@ function spaceLeaves(xs: number[], gap: number): number[] {
  */
 export function layoutSwimlanes(
   focus: GraphNode,
-  expandedPeople: PersonNode[],
+  tracedPeople: PersonNode[],
   now: DateParts,
 ): SwimlaneLayout {
   const min = focus.start;
   const max = now;
 
-  const lanes: Swimlane[] = expandedPeople.map((person, laneIndex) => {
+  const lanes: Swimlane[] = tracedPeople.map((person, laneIndex) => {
     const faceY = BAND_TOP + laneIndex * LANE_GAP;
     const stints = person.onward ?? [];
     // True dates first, then a spacing pass so close starts stay readable.

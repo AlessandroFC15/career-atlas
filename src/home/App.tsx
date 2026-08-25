@@ -52,7 +52,7 @@ export function App() {
   // (m2-plan §3). Transient: never persisted, always starts at the atlas.
   const [nav, setNav] = useState<GraphView>({ mode: 'atlas' });
   // Person ids with a trace in flight (M3): drives the spinner-on-orb. Transient.
-  const [expandingIds, setExpandingIds] = useState<Set<string>>(new Set());
+  const [tracingIds, setTracingIds] = useState<Set<string>>(new Set());
   // An unobtrusive note shown when a trace fails (the worker tab is already
   // surfaced for the user to act on). Cleared when the next trace starts.
   const [traceNote, setTraceNote] = useState<string | null>(null);
@@ -195,7 +195,7 @@ export function App() {
 
   // Trace one clicked colleague (m3-plan §8, §9): spinner on the orb, one
   // profile load, then patch that person in place (status + onward). Never
-  // re-fetches an already-expanded person; a dismissed orb re-clicks to retry.
+  // re-fetches an already-traced person; a dismissed orb re-clicks to retry.
   async function handleTracePerson(personId: string) {
     if (view.kind !== 'seeded' || nav.mode !== 'galaxy') return;
     const companyId = nav.companyId;
@@ -204,11 +204,11 @@ export function App() {
       (p) => p.id === personId,
     );
     if (!company || !person) return;
-    if (person.status === 'expanded') return; // already traced, never re-fetch
-    if (expandingIds.has(personId)) return; // a trace is already in flight
+    if (person.status === 'traced') return; // already traced, never re-fetch
+    if (tracingIds.has(personId)) return; // a trace is already in flight
 
     setTraceNote(null);
-    setExpandingIds((prev) => new Set(prev).add(personId));
+    setTracingIds((prev) => new Set(prev).add(personId));
     try {
       const result = await runTracePerson(company, person);
       setView((v) => {
@@ -229,11 +229,11 @@ export function App() {
                         ...p,
                         status: result.status,
                         onward:
-                          result.status === 'expanded' ? result.onward : undefined,
-                        expandedAt:
-                          result.status === 'expanded'
-                            ? result.expandedAt
-                            : p.expandedAt,
+                          result.status === 'traced' ? result.onward : undefined,
+                        tracedAt:
+                          result.status === 'traced'
+                            ? result.tracedAt
+                            : p.tracedAt,
                       }
                     : p,
                 ),
@@ -247,7 +247,7 @@ export function App() {
       const e = err instanceof TraceError ? err : null;
       setTraceNote(e?.message ?? 'Could not follow them. Try again.');
     } finally {
-      setExpandingIds((prev) => {
+      setTracingIds((prev) => {
         const next = new Set(prev);
         next.delete(personId);
         return next;
@@ -281,7 +281,7 @@ export function App() {
           onReseed={handleReset}
           onCompanyClick={handleExpand}
           onPersonClick={handleTracePerson}
-          expandingIds={expandingIds}
+          tracingIds={tracingIds}
           traceNote={nav.mode === 'galaxy' ? traceNote : null}
           onBack={handleBack}
           animateIntro={animateIntro}
@@ -400,7 +400,7 @@ function SeededState({
   onReseed,
   onCompanyClick,
   onPersonClick,
-  expandingIds,
+  tracingIds,
   traceNote,
   onBack,
   animateIntro,
@@ -411,7 +411,7 @@ function SeededState({
   onReseed: () => void;
   onCompanyClick: (companyId: string) => void;
   onPersonClick: (personId: string) => void;
-  expandingIds: Set<string>;
+  tracingIds: Set<string>;
   traceNote: string | null;
   onBack: () => void;
   animateIntro: boolean;
@@ -440,7 +440,7 @@ function SeededState({
         view={view}
         onCompanyClick={onCompanyClick}
         onPersonClick={onPersonClick}
-        expandingIds={expandingIds}
+        tracingIds={tracingIds}
         onBack={onBack}
         animateIntro={animateIntro}
       />
