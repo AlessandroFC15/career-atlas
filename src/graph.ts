@@ -214,8 +214,11 @@ export const AXIS_WIDTH = 920;
 
 /** Minimum horizontal distance between two leaves on the same lane. The real
  *  footprint of a leaf is its label (120px, `.onward-node__label`), not the
- *  56px orb, so anything closer than this collides into unreadable mush. */
-export const MIN_LEAF_GAP = 132;
+ *  56px orb, so the orbs clear each other long before the labels do. This sits
+ *  just under the label width: neighbouring labels can graze, which keeps
+ *  leaves closer to their true dates, and the text still reads because a name
+ *  rarely fills its box. */
+export const MIN_LEAF_GAP = 100;
 
 /** The convergence accent key for an onward stint: its URN when present, else
  *  the normalized company name (m3-plan §6d). */
