@@ -333,10 +333,9 @@ export function buildGalaxy(
         data: { index: li, color: prevColor },
       });
 
-      // Current job (Present): extend a dashed "ongoing" beam from this leaf to
-      // the shared now-line, in THIS company's colour (they are here now), so
-      // "still there" reads as the line reaching today.
-      if (leaf.stint.end === null) {
+      // Extend a dashed "ongoing" beam from this leaf to the shared now-line, in
+      // THIS company's colour, so it reads as the line reaching today.
+      if (leaf.reachesNow) {
         anyPresent = true;
         const anchorId = `${faceId}::now::${li}`;
         laneNodes.push({

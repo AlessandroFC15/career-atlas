@@ -742,4 +742,51 @@ describe('layoutSwimlanes', () => {
     expect(out.convergences).toHaveLength(1);
     expect(out.convergences[0].key).toBe('loft');
   });
+
+  it('flags reachesNow for the last leaf even once it already ended', () => {
+    const out = layoutSwimlanes(
+      focus,
+      [
+        personWithOnward('p0', [
+          stint('Mercado Livre', { year: 2021 }, { end: { year: 2022, month: 4 } }),
+          stint('Faire', { year: 2022 }, { end: { year: 2026, month: 6 } }),
+        ]),
+      ],
+      now,
+      BAND_TOP,
+    );
+    const leaves = out.lanes[0].leaves;
+    expect(leaves[0].reachesNow).toBe(false);
+    expect(leaves[1].reachesNow).toBe(true);
+  });
+
+  it('flags reachesNow for a leaf that is genuinely still Present', () => {
+    const out = layoutSwimlanes(
+      focus,
+      [personWithOnward('p0', [stint('Faire', { year: 2022 })])],
+      now,
+      BAND_TOP,
+    );
+    expect(out.lanes[0].leaves[0].reachesNow).toBe(true);
+  });
+
+  it('flags reachesNow for a still-Present stint even when a later, already-ended stint follows it', () => {
+    // An overlapping side stint: still there at "Early" while "Later" (which
+    // started after) has already wrapped up. Both should reach now: "Early"
+    // because it's genuinely current, "Later" because it's the lane's last leaf.
+    const out = layoutSwimlanes(
+      focus,
+      [
+        personWithOnward('p0', [
+          stint('Early', { year: 2020 }),
+          stint('Later', { year: 2021 }, { end: { year: 2022 } }),
+        ]),
+      ],
+      now,
+      BAND_TOP,
+    );
+    const leaves = out.lanes[0].leaves;
+    expect(leaves[0].reachesNow).toBe(true);
+    expect(leaves[1].reachesNow).toBe(true);
+  });
 });

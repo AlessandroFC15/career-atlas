@@ -359,6 +359,11 @@ export interface SwimlaneLeaf {
   y: number; // relative to base y
   accentKey: string;
   convergent: boolean; // shares its accent key with a leaf in another lane
+  // True for a genuinely current job, and also for the lane's last leaf even
+  // once it has ended (nothing is known past it): both chart as "reaches
+  // today" on the shared now-line, rather than modeling the latter as its own
+  // distinct "unknown" state.
+  reachesNow: boolean;
 }
 
 /** One colleague's lane: a face in the gutter before the axis, and its onward
@@ -472,6 +477,7 @@ export function layoutSwimlanes(
       y: faceY,
       accentKey: onwardAccentKey(stint),
       convergent: false,
+      reachesNow: stint.end === null || i === stints.length - 1,
     }));
     return { person, laneIndex, faceX: AXIS_LEFT - FACE_GUTTER, faceY, leaves };
   });
