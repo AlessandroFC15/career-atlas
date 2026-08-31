@@ -68,3 +68,38 @@ export function CompanyLogo({
 export function Spinner() {
   return <div className="spinner" role="status" aria-label="Loading" />;
 }
+
+/** Logged-out is a precondition, not a failure (issue #1): a dim, unlit orb
+ *  and a login action rather than the error card's glass panel. Shared by the
+ *  top-level seed screen and the galaxy overlay so the two "Not logged in"
+ *  surfaces can't drift out of sync; `secondary` is the one place they differ
+ *  (the seed screen's manual "Seed again" fallback). */
+export function LoggedOutPanel({
+  message,
+  onLogin,
+  secondary,
+  overlay = false,
+}: {
+  message: string;
+  onLogin: () => void;
+  secondary?: { label: string; onClick: () => void };
+  overlay?: boolean;
+}) {
+  return (
+    <div className={overlay ? 'logged-out logged-out--overlay' : 'logged-out'}>
+      <span className="logged-out__orb" aria-hidden="true" />
+      <h1 className="logged-out__title">Not logged in</h1>
+      <p className="muted">{message}</p>
+      <div className="logged-out__actions">
+        <button className="btn btn--primary" onClick={onLogin}>
+          Log in to LinkedIn
+        </button>
+        {secondary && (
+          <button className="btn btn--ghost" onClick={secondary.onClick}>
+            {secondary.label}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}

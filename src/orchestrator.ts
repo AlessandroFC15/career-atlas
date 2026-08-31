@@ -43,6 +43,76 @@ export class SeedError extends Error {
 const ME_URL = 'https://www.linkedin.com/in/me/';
 const NAV_TIMEOUT = 30000;
 
+/** LinkedIn's login page, for the logged-out state's "Log in" link. Never the
+ *  worker tab's URL: a logged-out /in/me redirects to signup, not login, so
+ *  we hand the user this URL ourselves rather than reusing wherever the
+ *  worker tab landed. */
+export const LINKEDIN_LOGIN_URL = 'https://www.linkedin.com/login';
+
+/** What to do with the worker tab once an error has it: a logged-out
+ *  redirect is not something to inspect (it's a signup pitch, never the
+ *  page the user wants), so close it and let the styled logged-out state
+ *  offer the real login link instead. Every other error is a genuine
+ *  failure worth surfacing, so bring that tab forward for the user to see. */
+function settleWorkerTab(workerTabId: number | undefined, loggedOut: boolean): void {
+  if (workerTabId === undefined) return;
+  if (loggedOut) {
+    chrome.tabs.remove(workerTabId).catch(() => {});
+  } else {
+    chrome.tabs.update(workerTabId, { active: true }).catch(() => {});
+  }
+}
+
+// The tab id of a login watch already in flight, so a second "Log in to
+// LinkedIn" click (the button appears in three places) focuses that tab
+// instead of opening another and leaking another pair of onUpdated/onRemoved
+// listeners (each fires on every tab in the browser, not just this one).
+let pendingLoginTabId: number | undefined;
+
+/**
+ * Open LinkedIn's login page and call `onReturn` once the user is done with
+ * it, so the logged-out state's action can retry itself instead of making the
+ * user come back and click "Seed again" (or its expand/trace equivalent) by
+ * hand. "Done" is either signal, whichever comes first: the tab navigates
+ * somewhere that isn't a logged-out URL (login succeeded), or the user closes
+ * the tab themselves (they're finished either way, successful or not; a
+ * retry that finds them still logged out just lands back on this same state).
+ */
+export function watchForLogin(onReturn: () => void): void {
+  if (pendingLoginTabId !== undefined) {
+    chrome.tabs.update(pendingLoginTabId, { active: true }).catch(() => {});
+    return;
+  }
+  chrome.tabs.create({ url: LINKEDIN_LOGIN_URL }, (tab) => {
+    const tabId = tab?.id;
+    if (tabId === undefined) return;
+    pendingLoginTabId = tabId;
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      pendingLoginTabId = undefined;
+      chrome.tabs.onUpdated.removeListener(onUpdated);
+      chrome.tabs.onRemoved.removeListener(onRemoved);
+      onReturn();
+    };
+    const onUpdated = (
+      id: number,
+      info: chrome.tabs.TabChangeInfo,
+      updatedTab: chrome.tabs.Tab,
+    ) => {
+      if (id !== tabId || info.status !== 'complete') return;
+      if (!isLoggedOutUrl(updatedTab.url)) finish();
+    };
+    const onRemoved = (id: number) => {
+      if (id !== tabId) return;
+      finish();
+    };
+    chrome.tabs.onUpdated.addListener(onUpdated);
+    chrome.tabs.onRemoved.addListener(onRemoved);
+  });
+}
+
 /** Resolve when the tab finishes loading (optionally matching a URL fragment). */
 function waitForLoad(
   tabId: number,
@@ -243,11 +313,10 @@ export async function runSeed(hooks: SeedRunHooks = {}): Promise<Seed> {
   } catch (err) {
     console.error('[career-atlas] seed failed:', err);
     if (err instanceof SeedError) {
-      // Attach the worker tab id and surface it (keep it open on error).
+      // Attach the worker tab id, then settle it: closed if logged-out,
+      // surfaced otherwise.
       err.workerTabId ??= workerTabId;
-      if (err.workerTabId !== undefined) {
-        chrome.tabs.update(err.workerTabId, { active: true }).catch(() => {});
-      }
+      settleWorkerTab(err.workerTabId, err.code === 'LOGGED_OUT');
       throw err;
     }
     throw new SeedError(
@@ -348,8 +417,9 @@ async function cachePhotos(people: PersonNode[]): Promise<void> {
   );
 }
 
-/** Surface the worker tab and rethrow as an ExpandError. Both people flows keep
- *  the tab open on failure so the user sees the real page. */
+/** Settle the worker tab and rethrow as an ExpandError: closed if logged-out
+ *  (never a signup pitch left in the tab strip), surfaced otherwise so the
+ *  user sees the real page. */
 function asExpandError(err: unknown, workerTabId?: number): ExpandError {
   console.error('[career-atlas] people fetch failed:', err);
   const e =
@@ -361,9 +431,7 @@ function asExpandError(err: unknown, workerTabId?: number): ExpandError {
           workerTabId,
         );
   e.workerTabId ??= workerTabId;
-  if (e.workerTabId !== undefined) {
-    chrome.tabs.update(e.workerTabId, { active: true }).catch(() => {});
-  }
+  settleWorkerTab(e.workerTabId, e.code === 'LOGGED_OUT');
   return e;
 }
 
@@ -615,15 +683,11 @@ export async function runTracePerson(
     console.error('[career-atlas] trace failed:', err);
     if (err instanceof TraceError) {
       err.workerTabId ??= workerTabId;
-      if (err.workerTabId !== undefined) {
-        chrome.tabs.update(err.workerTabId, { active: true }).catch(() => {});
-      }
+      settleWorkerTab(err.workerTabId, err.code === 'LOGGED_OUT');
       throw err;
     }
     // A SeedError bubbling from waitForLoad (timeout / tab closed) lands here.
-    if (workerTabId !== undefined) {
-      chrome.tabs.update(workerTabId, { active: true }).catch(() => {});
-    }
+    settleWorkerTab(workerTabId, false);
     throw new TraceError(
       'GENERIC',
       err instanceof Error ? err.message : 'Something went wrong.',

@@ -9,13 +9,14 @@ import {
   runTracePerson,
   SeedError,
   TraceError,
+  watchForLogin,
 } from '../orchestrator';
 import type {
   CareerGraph as CareerGraphModel,
   CompanyExpansion,
   Seed,
 } from '../types';
-import { Avatar } from './components';
+import { Avatar, LoggedOutPanel } from './components';
 import { CareerGraph, type GraphView } from './CareerGraph';
 import { BreathingOrb, LoadingChart, useSeedReveal } from './LoadingChart';
 
@@ -74,10 +75,25 @@ export function App() {
   const [fresh, setFresh] = useState<{ companyId: string; ids: Set<string> } | null>(
     null,
   );
-  // An unobtrusive note shown when a trace or a "more" page fails (the worker
-  // tab is already surfaced for the user to act on). Cleared when the next one
-  // starts.
-  const [galaxyNote, setGalaxyNote] = useState<string | null>(null);
+  // An unobtrusive note shown when a trace or a "more" page fails. `loggedOut`
+  // carries a login link instead of the usual "the worker tab is already
+  // surfaced" implication, since a logged-out worker tab is closed, not left
+  // open (see orchestrator's settleWorkerTab). Cleared when the next one starts.
+  const [galaxyNote, setGalaxyNote] = useState<{
+    message: string;
+    loggedOut: boolean;
+  } | null>(null);
+  // Whichever action just hit LOGGED_OUT, so the "Log in" button can retry it
+  // on its own once the user returns from LinkedIn — no separate "Seed again"
+  // click needed. A ref (not state): it only feeds an imperative callback,
+  // never the render, and must never go stale between being set and fired.
+  const pendingRetry = useRef<() => void>(() => {});
+
+  // Open LinkedIn's login page and, once the user is done with it, replay
+  // whatever action was blocked by being logged out.
+  function handleLogin() {
+    watchForLogin(() => pendingRetry.current());
+  }
 
   // Read-on-mount: render the materialized graph from the store, never by
   // re-reading LinkedIn (m1-plan §9). An M0-era seed (no graph, or a stale one)
@@ -160,6 +176,7 @@ export function App() {
     } catch (err) {
       reveal.reset();
       const e = err instanceof SeedError ? err : null;
+      if (e?.code === 'LOGGED_OUT') pendingRetry.current = handleSeed;
       setView({
         kind: 'error',
         code: e?.code ?? 'GENERIC',
@@ -219,7 +236,9 @@ export function App() {
       setNav((n) => (stillHere(n) ? { mode: 'galaxy', companyId, status: 'ready' } : n));
     } catch (err) {
       const e = err instanceof ExpandError ? err : null;
-      const status = e?.code === 'EMPTY' ? 'empty' : 'error';
+      const status =
+        e?.code === 'EMPTY' ? 'empty' : e?.code === 'LOGGED_OUT' ? 'logged-out' : 'error';
+      if (status === 'logged-out') pendingRetry.current = () => handleExpand(companyId);
       setNav((n) =>
         stillHere(n)
           ? { mode: 'galaxy', companyId, status, message: e?.message }
@@ -261,9 +280,15 @@ export function App() {
         ),
       }));
     } catch (err) {
-      // Person stays 'raw' (retryable); the worker tab is already surfaced.
+      // Person stays 'raw' (retryable).
       const e = err instanceof TraceError ? err : null;
-      setGalaxyNote(e?.message ?? 'Could not follow them. Try again.');
+      if (e?.code === 'LOGGED_OUT') {
+        pendingRetry.current = () => handleTracePerson(personId);
+      }
+      setGalaxyNote({
+        message: e?.message ?? 'Could not follow them. Try again.',
+        loggedOut: e?.code === 'LOGGED_OUT',
+      });
     } finally {
       setTracingIds((prev) => {
         const next = new Set(prev);
@@ -295,7 +320,13 @@ export function App() {
       // that landed people needs none either: they simply appear.
     } catch (err) {
       const e = err instanceof ExpandError ? err : null;
-      setGalaxyNote(e?.message ?? 'Could not load more people. Try again.');
+      if (e?.code === 'LOGGED_OUT') {
+        pendingRetry.current = () => handleLoadMore(companyId);
+      }
+      setGalaxyNote({
+        message: e?.message ?? 'Could not load more people. Try again.',
+        loggedOut: e?.code === 'LOGGED_OUT',
+      });
     } finally {
       setLoadingMoreId(null);
     }
@@ -336,6 +367,7 @@ export function App() {
               : NO_IDS
           }
           galaxyNote={nav.mode === 'galaxy' ? galaxyNote : null}
+          onLogin={handleLogin}
           onBack={handleBack}
           animateIntro={animateIntro}
         />
@@ -370,8 +402,15 @@ export function App() {
       <main className="app__main">
         {view.kind === 'loading' && <BreathingOrb />}
         {view.kind === 'empty' && <EmptyState onSeed={handleSeed} />}
-        {view.kind === 'error' && (
-          <ErrorState code={view.code} message={view.message} onRetry={handleSeed} />
+        {view.kind === 'error' && view.code === 'LOGGED_OUT' && (
+          <LoggedOutPanel
+            message={view.message}
+            onLogin={handleLogin}
+            secondary={{ label: 'Seed again', onClick: handleSeed }}
+          />
+        )}
+        {view.kind === 'error' && view.code !== 'LOGGED_OUT' && (
+          <ErrorState message={view.message} onRetry={handleSeed} />
         )}
       </main>
     </div>
@@ -421,24 +460,14 @@ function EmptyState({ onSeed }: { onSeed: () => void }) {
   );
 }
 
-function ErrorState({
-  code,
-  message,
-  onRetry,
-}: {
-  code: string;
-  message: string;
-  onRetry: () => void;
-}) {
+function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <div className="center">
       <div className="error-card">
-        <p className="error-card__title">
-          {code === 'LOGGED_OUT' ? 'Not logged in' : 'Seeding failed'}
-        </p>
+        <p className="error-card__title">Seeding failed</p>
         <p className="muted">{message}</p>
         <button className="btn btn--primary" onClick={onRetry}>
-          {code === 'LOGGED_OUT' ? 'Seed again' : 'Retry'}
+          Retry
         </button>
       </div>
     </div>
@@ -458,6 +487,7 @@ function SeededState({
   loadingMoreId,
   freshIds,
   galaxyNote,
+  onLogin,
   onBack,
   animateIntro,
 }: {
@@ -471,7 +501,8 @@ function SeededState({
   tracingIds: Set<string>;
   loadingMoreId: string | null;
   freshIds: Set<string>;
-  galaxyNote: string | null;
+  galaxyNote: { message: string; loggedOut: boolean } | null;
+  onLogin: () => void;
   onBack: () => void;
   animateIntro: boolean;
 }) {
@@ -503,10 +534,20 @@ function SeededState({
         tracingIds={tracingIds}
         loadingMoreId={loadingMoreId}
         freshIds={freshIds}
+        onLogin={onLogin}
         onBack={onBack}
         animateIntro={animateIntro}
       />
-      {galaxyNote && <div className="galaxy-note">{galaxyNote}</div>}
+      {galaxyNote && (
+        <div className="galaxy-note">
+          {galaxyNote.message}
+          {galaxyNote.loggedOut && (
+            <button className="galaxy-note__link" onClick={onLogin}>
+              Log in to LinkedIn
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

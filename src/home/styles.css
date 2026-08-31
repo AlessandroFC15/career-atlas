@@ -186,12 +186,14 @@ html, body {
 
 /* Buttons */
 .btn {
+  display: inline-block;
   font-size: 15px;
   font-weight: 600;
   border-radius: 24px;
   padding: 10px 24px;
   cursor: pointer;
   border: 1px solid transparent;
+  text-decoration: none;
 }
 .btn--primary {
   background: var(--accent);
@@ -218,6 +220,50 @@ html, body {
   animation: spin 0.8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* Logged-out (issue #1): a precondition that hasn't been met yet, not a
+   failure, so it gets a dim, unlit orb rather than the error card's glass
+   panel dropped on top of the void. Shares the welcome screen's anchored,
+   centered layout so it reads as part of the same star chart. */
+.logged-out {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+  max-width: 420px;
+  margin: 0 auto;
+  padding-top: 14vh;
+}
+.logged-out__orb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #9aa3c9 0%, #565f8a 60%, transparent 82%);
+  box-shadow: 0 0 14px 3px rgba(150, 160, 210, 0.28);
+  opacity: 0.75;
+  animation: orb-breathe 4.2s ease-in-out infinite;
+  margin-bottom: 6px;
+}
+.logged-out__title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.logged-out__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+.logged-out--overlay {
+  pointer-events: auto;
+  padding-top: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .logged-out__orb { animation: none; }
+}
 
 /* Error */
 .error-card {
@@ -927,7 +973,7 @@ a.person-orb {
   opacity: 0;
 }
 
-/* Unobtrusive note when a trace or a "more" page fails (the worker tab is already surfaced). */
+/* Unobtrusive note when a trace or a "more" page fails. */
 .galaxy-note {
   position: absolute;
   bottom: 16px;
@@ -943,7 +989,23 @@ a.person-orb {
   border-radius: 16px;
   padding: 8px 16px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
+.galaxy-note__link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.galaxy-note__link:hover { text-decoration: underline; }
 
 /* Back-to-atlas control, top-left over the galaxy canvas. */
 .galaxy-back {

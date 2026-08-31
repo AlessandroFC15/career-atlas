@@ -7,7 +7,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import type { CareerGraph as CareerGraphModel, DateParts } from '../types';
-import { Spinner } from './components';
+import { LoggedOutPanel, Spinner } from './components';
 import { onwardAccentKey } from '../graph';
 import { nodeTypes } from './flow/nodes';
 import { edgeTypes } from './flow/edges';
@@ -20,7 +20,7 @@ export type GraphView =
   | {
       mode: 'galaxy';
       companyId: string;
-      status: 'loading' | 'ready' | 'empty' | 'error';
+      status: 'loading' | 'ready' | 'empty' | 'error' | 'logged-out';
       message?: string;
     };
 
@@ -38,6 +38,7 @@ function Flow({
   tracingIds,
   loadingMoreId,
   freshIds,
+  onLogin,
   onBack,
   animateIntro,
 }: {
@@ -49,6 +50,7 @@ function Flow({
   tracingIds: Set<string>;
   loadingMoreId: string | null;
   freshIds: Set<string>;
+  onLogin: () => void;
   onBack: () => void;
   animateIntro: boolean;
 }) {
@@ -219,14 +221,22 @@ function Flow({
         <Controls showInteractive={false} />
       </ReactFlow>
 
-      {inGalaxy && <GalaxyChrome view={view} onBack={onBack} />}
+      {inGalaxy && <GalaxyChrome view={view} onLogin={onLogin} onBack={onBack} />}
     </div>
   );
 }
 
 /** Back control plus the loading / empty / error overlays for a galaxy.
  *  (The title lives in the canvas as a node; see flow/nodes.tsx.) */
-function GalaxyChrome({ view, onBack }: { view: GraphView; onBack: () => void }) {
+function GalaxyChrome({
+  view,
+  onLogin,
+  onBack,
+}: {
+  view: GraphView;
+  onLogin: () => void;
+  onBack: () => void;
+}) {
   const status = view.mode === 'galaxy' ? view.status : 'ready';
   const message = view.mode === 'galaxy' ? view.message : undefined;
   return (
@@ -257,6 +267,17 @@ function GalaxyChrome({ view, onBack }: { view: GraphView; onBack: () => void })
           </div>
         </div>
       )}
+      {/* Logged-out is a precondition, not a failure (issue #1): its own quiet
+          overlay, with a login action, rather than the generic error card. */}
+      {status === 'logged-out' && (
+        <div className="galaxy-overlay">
+          <LoggedOutPanel
+            message={message ?? 'Log in to LinkedIn, then try again.'}
+            onLogin={onLogin}
+            overlay
+          />
+        </div>
+      )}
     </>
   );
 }
@@ -276,6 +297,7 @@ export function CareerGraph({
   tracingIds,
   loadingMoreId,
   freshIds,
+  onLogin,
   onBack,
   animateIntro = false,
 }: {
@@ -287,6 +309,7 @@ export function CareerGraph({
   tracingIds: Set<string>;
   loadingMoreId: string | null;
   freshIds: Set<string>;
+  onLogin: () => void;
   onBack: () => void;
   animateIntro?: boolean;
 }) {
@@ -301,6 +324,7 @@ export function CareerGraph({
         tracingIds={tracingIds}
         loadingMoreId={loadingMoreId}
         freshIds={freshIds}
+        onLogin={onLogin}
         onBack={onBack}
         animateIntro={animateIntro}
       />
