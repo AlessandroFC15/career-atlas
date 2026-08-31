@@ -126,11 +126,18 @@ export interface PersonNode {
   order: number; // column position within the galaxy
 }
 
-/** A company's captured first page of people (one search load). */
+/** A company's captured people, one search page at a time (M2 loads the first,
+ *  M5 pages onward). `people` accumulates across pages, deduped by id. */
 export interface CompanyExpansion {
   people: PersonNode[];
   keyword: string; // the search keyword used (the company name)
-  fetchedAt: number; // epoch ms
+  fetchedAt: number; // epoch ms of the most recent page
+  // How many search pages have been pulled so far. Absent on a pre-M5 stored
+  // expansion, which is always exactly one page: read it as `?? 1`.
+  pagesLoaded?: number;
+  // True once a page came back with nothing new: the search is spent and the
+  // "more" orb retires into its terminal state. Absent = more may be out there.
+  exhausted?: boolean;
 }
 
 export interface CareerGraph {

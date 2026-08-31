@@ -4,12 +4,17 @@ import { deriveGraph } from '../graph';
 import {
   ExpandError,
   runExpandCompany,
+  runLoadMorePeople,
   runSeed,
   runTracePerson,
   SeedError,
   TraceError,
 } from '../orchestrator';
-import type { CareerGraph as CareerGraphModel, Seed } from '../types';
+import type {
+  CareerGraph as CareerGraphModel,
+  CompanyExpansion,
+  Seed,
+} from '../types';
 import { Avatar } from './components';
 import { CareerGraph, type GraphView } from './CareerGraph';
 import { BreathingOrb, LoadingChart, useSeedReveal } from './LoadingChart';
@@ -28,6 +33,10 @@ const HANDOFF_MS = 1000;
 // A short hold on the fully-lit scatter (its phase text already fading out)
 // before it dissolves into the graph, so the climax settles without lingering.
 const CLIMAX_HOLD_MS = 300;
+// A stable empty set for "nothing arrived on a page here". A fresh `new Set()`
+// per render would give the graph a new prop identity every time and bust the
+// scene memo for nothing.
+const NO_IDS: Set<string> = new Set();
 
 export function App() {
   const [view, setView] = useState<View>({ kind: 'loading' });
@@ -53,9 +62,22 @@ export function App() {
   const [nav, setNav] = useState<GraphView>({ mode: 'atlas' });
   // Person ids with a trace in flight (M3): drives the spinner-on-orb. Transient.
   const [tracingIds, setTracingIds] = useState<Set<string>>(new Set());
-  // An unobtrusive note shown when a trace fails (the worker tab is already
-  // surfaced for the user to act on). Cleared when the next trace starts.
-  const [traceNote, setTraceNote] = useState<string | null>(null);
+  // The company whose next page of people is in flight (M5), or null. A single
+  // id, not a set: you are in exactly one galaxy at a time. Lifted here (rather
+  // than owned by the orb) so a failed page has somewhere to surface.
+  const [loadingMoreId, setLoadingMoreId] = useState<string | null>(null);
+  // The people the last "more" click brought in, and the galaxy they belong to.
+  // They reveal as their own quick batch rather than waiting out the drill-in
+  // camera gate (see styles.css [data-fresh]). Carrying the company id means the
+  // batch scopes itself at the point of use: a re-entered galaxy plays its one
+  // entry cascade with no effect needed to clear this first.
+  const [fresh, setFresh] = useState<{ companyId: string; ids: Set<string> } | null>(
+    null,
+  );
+  // An unobtrusive note shown when a trace or a "more" page fails (the worker
+  // tab is already surfaced for the user to act on). Cleared when the next one
+  // starts.
+  const [galaxyNote, setGalaxyNote] = useState<string | null>(null);
 
   // Read-on-mount: render the materialized graph from the store, never by
   // re-reading LinkedIn (m1-plan §9). An M0-era seed (no graph, or a stale one)
@@ -146,6 +168,32 @@ export function App() {
     }
   }
 
+  /** Write one company's expansion into the seeded view. The three fetch paths
+   *  (expand, trace, load more) all end here, so the nested spread that reaches
+   *  `graph.expansions[companyId]` is written once. `next` may be a value or an
+   *  updater over the current expansion; an updater is skipped when the company
+   *  has none (nothing to patch). */
+  function putExpansion(
+    companyId: string,
+    next:
+      | CompanyExpansion
+      | ((current: CompanyExpansion) => CompanyExpansion),
+  ) {
+    setView((v) => {
+      if (v.kind !== 'seeded') return v;
+      const current = v.graph.expansions?.[companyId];
+      if (typeof next === 'function' && !current) return v;
+      const expansion = typeof next === 'function' ? next(current!) : next;
+      return {
+        ...v,
+        graph: {
+          ...v.graph,
+          expansions: { ...(v.graph.expansions ?? {}), [companyId]: expansion },
+        },
+      };
+    });
+  }
+
   // Drill into a company: fly in immediately, then expand if not already cached
   // (m2-plan §8, §9). Re-entering an expanded company never re-fetches.
   async function handleExpand(companyId: string) {
@@ -167,20 +215,7 @@ export function App() {
         onProgress: (message) =>
           setNav((n) => (stillHere(n) ? { ...n, status: 'loading', message } : n)),
       });
-      setView((v) =>
-        v.kind === 'seeded'
-          ? {
-              ...v,
-              graph: {
-                ...v.graph,
-                expansions: {
-                  ...(v.graph.expansions ?? {}),
-                  [companyId]: expansion,
-                },
-              },
-            }
-          : v,
-      );
+      putExpansion(companyId, expansion);
       setNav((n) => (stillHere(n) ? { mode: 'galaxy', companyId, status: 'ready' } : n));
     } catch (err) {
       const e = err instanceof ExpandError ? err : null;
@@ -207,51 +242,62 @@ export function App() {
     if (person.status === 'traced') return; // already traced, never re-fetch
     if (tracingIds.has(personId)) return; // a trace is already in flight
 
-    setTraceNote(null);
+    setGalaxyNote(null);
     setTracingIds((prev) => new Set(prev).add(personId));
     try {
       const result = await runTracePerson(company, person);
-      setView((v) => {
-        if (v.kind !== 'seeded') return v;
-        const expansion = v.graph.expansions?.[companyId];
-        if (!expansion) return v;
-        return {
-          ...v,
-          graph: {
-            ...v.graph,
-            expansions: {
-              ...v.graph.expansions,
-              [companyId]: {
-                ...expansion,
-                people: expansion.people.map((p) =>
-                  p.id === personId
-                    ? {
-                        ...p,
-                        status: result.status,
-                        onward:
-                          result.status === 'traced' ? result.onward : undefined,
-                        tracedAt:
-                          result.status === 'traced'
-                            ? result.tracedAt
-                            : p.tracedAt,
-                      }
-                    : p,
-                ),
-              },
-            },
-          },
-        };
-      });
+      putExpansion(companyId, (expansion) => ({
+        ...expansion,
+        people: expansion.people.map((p) =>
+          p.id === personId
+            ? {
+                ...p,
+                status: result.status,
+                onward: result.status === 'traced' ? result.onward : undefined,
+                tracedAt:
+                  result.status === 'traced' ? result.tracedAt : p.tracedAt,
+              }
+            : p,
+        ),
+      }));
     } catch (err) {
       // Person stays 'raw' (retryable); the worker tab is already surfaced.
       const e = err instanceof TraceError ? err : null;
-      setTraceNote(e?.message ?? 'Could not follow them. Try again.');
+      setGalaxyNote(e?.message ?? 'Could not follow them. Try again.');
     } finally {
       setTracingIds((prev) => {
         const next = new Set(prev);
         next.delete(personId);
         return next;
       });
+    }
+  }
+
+  // Page in the next batch of colleagues (M5): spinner on the "more" orb, one
+  // search load, then the merged people list replaces this company's expansion.
+  // Already-traced colleagues keep their status (and so their lanes) through the
+  // merge; a page that brings nobody new marks the search exhausted and the orb
+  // settles into its spent state.
+  async function handleLoadMore(companyId: string) {
+    if (view.kind !== 'seeded') return;
+    if (loadingMoreId) return; // one page in flight at a time
+    const company = view.graph.nodes.find((n) => n.id === companyId);
+    const expansion = view.graph.expansions?.[companyId];
+    if (!company || !expansion || expansion.exhausted) return;
+
+    setGalaxyNote(null);
+    setLoadingMoreId(companyId);
+    try {
+      const result = await runLoadMorePeople(company, expansion);
+      putExpansion(companyId, result.expansion);
+      setFresh({ companyId, ids: new Set(result.added.map((p) => p.id)) });
+      // Exhaustion is visible on the orb itself, so it needs no note. A page
+      // that landed people needs none either: they simply appear.
+    } catch (err) {
+      const e = err instanceof ExpandError ? err : null;
+      setGalaxyNote(e?.message ?? 'Could not load more people. Try again.');
+    } finally {
+      setLoadingMoreId(null);
     }
   }
 
@@ -281,8 +327,15 @@ export function App() {
           onReseed={handleReset}
           onCompanyClick={handleExpand}
           onPersonClick={handleTracePerson}
+          onLoadMore={handleLoadMore}
           tracingIds={tracingIds}
-          traceNote={nav.mode === 'galaxy' ? traceNote : null}
+          loadingMoreId={loadingMoreId}
+          freshIds={
+            nav.mode === 'galaxy' && fresh?.companyId === nav.companyId
+              ? fresh.ids
+              : NO_IDS
+          }
+          galaxyNote={nav.mode === 'galaxy' ? galaxyNote : null}
           onBack={handleBack}
           animateIntro={animateIntro}
         />
@@ -400,8 +453,11 @@ function SeededState({
   onReseed,
   onCompanyClick,
   onPersonClick,
+  onLoadMore,
   tracingIds,
-  traceNote,
+  loadingMoreId,
+  freshIds,
+  galaxyNote,
   onBack,
   animateIntro,
 }: {
@@ -411,8 +467,11 @@ function SeededState({
   onReseed: () => void;
   onCompanyClick: (companyId: string) => void;
   onPersonClick: (personId: string) => void;
+  onLoadMore: (companyId: string) => void;
   tracingIds: Set<string>;
-  traceNote: string | null;
+  loadingMoreId: string | null;
+  freshIds: Set<string>;
+  galaxyNote: string | null;
   onBack: () => void;
   animateIntro: boolean;
 }) {
@@ -440,11 +499,14 @@ function SeededState({
         view={view}
         onCompanyClick={onCompanyClick}
         onPersonClick={onPersonClick}
+        onLoadMore={onLoadMore}
         tracingIds={tracingIds}
+        loadingMoreId={loadingMoreId}
+        freshIds={freshIds}
         onBack={onBack}
         animateIntro={animateIntro}
       />
-      {traceNote && <div className="trace-note">{traceNote}</div>}
+      {galaxyNote && <div className="galaxy-note">{galaxyNote}</div>}
     </div>
   );
 }

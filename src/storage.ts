@@ -1,3 +1,4 @@
+import { mergePeople } from './graph';
 import type {
   CareerGraph,
   CompanyExpansion,
@@ -79,33 +80,65 @@ export async function saveExpansion(
 }
 
 /**
- * Patch one traced person in place (M3, m3-plan §8, §10). Reads the graph, finds
- * the matching person inside `expansions[companyId].people`, and merges the
- * status (+ onward trajectory) onto it. Mirrors `saveExpansion`: the atlas and
- * every other person are untouched. Returns the updated graph (null if none, or
- * if the company has no expansion / the person is absent).
+ * The read-modify-write shell every in-place expansion edit shares: re-read the
+ * graph (so the edit lands on what is stored NOW, not on a caller's snapshot
+ * that may be seconds old), hand `fn` the company's current expansion, and save
+ * what it returns. The atlas and every other company are untouched.
+ *
+ * Returns the updated graph, or null when there is nothing to patch: no stored
+ * graph, or this company was never expanded. Unlike `saveExpansion` it never
+ * CREATES the entry — a patch needs a first page to patch.
+ */
+async function patchExpansion(
+  companyId: string,
+  fn: (expansion: CompanyExpansion) => CompanyExpansion,
+): Promise<CareerGraph | null> {
+  const graph = await loadGraph();
+  const expansion = graph?.expansions?.[companyId];
+  if (!graph || !expansion) return null;
+  const next: CareerGraph = {
+    ...graph,
+    expansions: { ...graph.expansions, [companyId]: fn(expansion) },
+  };
+  await saveGraph(next);
+  return next;
+}
+
+/**
+ * Append a fetched page of people to a company's expansion (M5).
+ *
+ * The merge happens HERE, inside the re-read, rather than in the caller: a page
+ * load takes seconds and the user can trace a colleague while it is in flight,
+ * so the page is folded into whatever is stored now with the stored people
+ * winning (see `mergePeople`). Writing the caller's pre-fetch snapshot wholesale
+ * would quietly undo that trace.
+ */
+export async function appendExpansionPage(
+  companyId: string,
+  page: { people: PersonNode[]; pagesLoaded: number; exhausted: boolean },
+): Promise<CareerGraph | null> {
+  return patchExpansion(companyId, (expansion) => ({
+    ...expansion,
+    people: mergePeople(expansion.people, page.people),
+    fetchedAt: Date.now(),
+    pagesLoaded: page.pagesLoaded,
+    exhausted: page.exhausted,
+  }));
+}
+
+/**
+ * Patch one traced person in place (M3, m3-plan §8, §10): find the matching
+ * person inside `expansions[companyId].people` and merge the status (+ onward
+ * trajectory) onto them. Every other person is untouched. Returns null if the
+ * company has no expansion; an absent person is simply a no-op map.
  */
 export async function saveTrace(
   companyId: string,
   personId: string,
   patch: { status: 'traced' | 'dismissed'; onward?: OnwardStint[]; tracedAt?: number },
 ): Promise<CareerGraph | null> {
-  const graph = await loadGraph();
-  if (!graph) return null;
-  const expansion = graph.expansions?.[companyId];
-  if (!expansion) return null;
-  const next: CareerGraph = {
-    ...graph,
-    expansions: {
-      ...graph.expansions,
-      [companyId]: {
-        ...expansion,
-        people: expansion.people.map((p) =>
-          p.id === personId ? { ...p, ...patch } : p,
-        ),
-      },
-    },
-  };
-  await saveGraph(next);
-  return next;
+  return patchExpansion(companyId, (expansion) => ({
+    ...expansion,
+    people: expansion.people.map((p) => (p.id === personId ? { ...p, ...patch } : p)),
+  }));
 }

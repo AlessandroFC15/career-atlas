@@ -591,6 +591,17 @@ a.person-orb {
     var(--person-intro-delay) + var(--i) * var(--person-stagger)
   );
 }
+/* A batch just paged in by "more" arrives on its own terms. The gate above
+   exists to wait out the drill-in camera fly; an append's fitView is a slight
+   reframe, not a journey, so there is nothing to wait for and the gap reads as
+   the app hesitating. Reveal starts immediately, alongside the reframe, and the
+   stagger tightens from ceremonial to conversational: ten orbs sweep in over
+   ~300ms instead of 1.2s. Same curve, so it is recognisably the same gesture. */
+.person-node[data-fresh][data-status='raw'] .person-node__pop,
+.person-node[data-fresh][data-status='dismissed'] .person-node__pop {
+  --person-intro-delay: 0ms;
+  --person-stagger: 30ms;
+}
 /* Hovered person rises above neighbours so its name chip reads cleanly. */
 .person-node:hover { z-index: 10; }
 @keyframes person-appear {
@@ -916,8 +927,8 @@ a.person-orb {
   opacity: 0;
 }
 
-/* Unobtrusive note when a trace fails (the worker tab is already surfaced). */
-.trace-note {
+/* Unobtrusive note when a trace or a "more" page fails (the worker tab is already surfaced). */
+.galaxy-note {
   position: absolute;
   bottom: 16px;
   left: 50%;
@@ -994,9 +1005,9 @@ a.person-orb {
 }
 
 /* "Show more people": the next orb in the people row. A glassy orb with a
-   dashed rim and a faint "+", sitting one gap past the last face, so "more here"
-   lives where the cluster ends (not a pill pinned to the window). No count: the
-   search pages until a load comes back empty, so it just reads "more". */
+   dashed rim holding a facepile of ghost orbs, sitting one gap past the last
+   face, so "more here" lives where the cluster ends (not a pill pinned to the
+   window). No count: the search pages until a load brings nobody new. */
 .loadmore-node {
   display: flex;
   flex-direction: column;
@@ -1018,65 +1029,150 @@ a.person-orb {
   .loadmore-node { animation: none; }
 }
 .loadmore-orb {
+  /* The fill is two stops behind variables so hover and the spent state restate
+     only what changes, not the whole gradient. */
+  --loadmore-fill-in: rgba(124, 140, 255, 0.16);
+  --loadmore-fill-out: rgba(124, 140, 255, 0.03);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   background: radial-gradient(
     circle at 50% 38%,
-    rgba(124, 140, 255, 0.16),
-    rgba(124, 140, 255, 0.03)
+    var(--loadmore-fill-in),
+    var(--loadmore-fill-out)
   );
   border: 1.5px dashed rgba(140, 158, 235, 0.45);
   box-shadow: 0 0 0 rgba(124, 140, 255, 0);
   transition: transform 0.25s ease, box-shadow 0.35s ease,
     border-color 0.25s ease, background 0.25s ease;
 }
-/* An ellipsis as three tiny star-dots, evenly spaced: a quiet "more" that reads
-   as starlight, not a glyph. */
-.loadmore-dots {
-  display: flex;
-  align-items: center;
-  gap: 5px;
+/* A facepile of blank ghost orbs: two peeking out from behind a front one, at a
+   miniature of the person orbs they stand in for. Form does the explaining, so
+   the orb reads as "more faces" before the label is read. Each disc carries a
+   dark rim so the stack reads as overlapping discs, not one blob. */
+.loadmore-faces {
+  position: relative;
+  width: 42px;
+  height: 24px;
 }
-.loadmore-dots i {
-  width: 5px;
-  height: 5px;
+.loadmore-faces i {
+  position: absolute;
+  top: 50%;
   border-radius: 50%;
   background: radial-gradient(
-    circle,
-    rgba(190, 200, 255, 0.95) 0%,
-    rgba(150, 166, 245, 0.45) 55%,
-    rgba(140, 158, 235, 0) 100%
+    circle at 50% 34%,
+    rgba(206, 216, 255, 0.62),
+    rgba(150, 166, 245, 0.2)
   );
-  transition: transform 0.25s ease, filter 0.25s ease;
+  /* The rim is the page's own ground colour, so the discs cut into each other
+     the way stacked avatars do. */
+  box-shadow: 0 0 0 1.5px rgba(7, 10, 24, 0.92);
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.28s ease,
+    filter 0.25s ease;
 }
-.loadmore-node:hover .loadmore-dots i {
-  filter: brightness(1.35);
-  transform: scale(1.15);
+/* The two behind, then the front one last so it stacks on top. */
+.loadmore-faces i:nth-child(1) {
+  width: 18px;
+  height: 18px;
+  left: 0;
+  opacity: 0.55;
+  transform: translateY(-50%);
+}
+.loadmore-faces i:nth-child(2) {
+  width: 18px;
+  height: 18px;
+  right: 0;
+  opacity: 0.55;
+  transform: translateY(-50%);
+}
+.loadmore-faces i:nth-child(3) {
+  width: 24px;
+  height: 24px;
+  left: 50%;
+  margin-left: -12px;
+  opacity: 0.92;
+  transform: translateY(-50%);
+}
+/* Hover fans the pile open a touch: the hidden faces lean out, as if there
+   really are more behind. */
+.loadmore-node:hover .loadmore-faces i {
+  filter: brightness(1.3);
+}
+.loadmore-node:hover .loadmore-faces i:nth-child(1) {
+  transform: translate(-2.5px, -50%);
+  opacity: 0.75;
+}
+.loadmore-node:hover .loadmore-faces i:nth-child(2) {
+  transform: translate(2.5px, -50%);
+  opacity: 0.75;
 }
 .loadmore-node:hover .loadmore-orb {
+  --loadmore-fill-in: rgba(124, 140, 255, 0.28);
+  --loadmore-fill-out: rgba(124, 140, 255, 0.06);
   transform: scale(1.08);
   border-color: rgba(160, 176, 255, 0.85);
-  background: radial-gradient(
-    circle at 50% 38%,
-    rgba(124, 140, 255, 0.28),
-    rgba(124, 140, 255, 0.06)
-  );
   box-shadow: 0 0 22px rgba(124, 140, 255, 0.32);
 }
-/* Label below the orb: hidden at rest, floating in on hover, exactly like the
-   person orbs' name chip, so the row stays pure until you reach for it. */
+/* Label below the orb, always on. The person orbs hide their names until hover
+   because a face already says what it is; this orb does not, so at rest it has
+   to name itself. Muted so it sits under the faces rather than competing. */
 .loadmore-node__label {
   margin-top: 8px;
   font-size: 12px;
-  color: var(--text);
-  opacity: 0;
-  transition: opacity 0.25s ease;
+  color: var(--muted);
+  transition: color 0.25s ease;
   white-space: nowrap;
 }
 .loadmore-node:hover .loadmore-node__label {
-  opacity: 1;
+  color: var(--text);
+}
+
+/* Both non-resting states are inert: loading has a page in flight, spent has
+   nothing left to fetch. Neither is clickable, and in both the label is a status
+   line rather than an invitation, so hover must not brighten it as though it
+   were. `data-state` is absent at rest, so this reaches exactly those two. */
+.loadmore-node[data-state] {
+  cursor: default;
+}
+.loadmore-node[data-state]:hover .loadmore-node__label {
+  color: var(--muted);
+}
+
+/* A page is in flight: the orb holds its place and spins, and further clicks
+   are ignored, so "more" never queues up a second load behind the first. */
+.loadmore-node[data-state='loading'] .loadmore-orb {
+  border-style: solid;
+  border-color: rgba(140, 158, 235, 0.35);
+}
+
+/* Spent: the search has nothing new left. The orb stops being an affordance,
+   the dashed "there's more behind this" rim closes to a faint solid ring, the
+   three dots draw together into one dim point, and the label stays lit as the
+   row's terminator. Deliberately quiet: it is an answer, not a control. */
+.loadmore-node[data-state='spent'] .loadmore-orb,
+.loadmore-node[data-state='spent']:hover .loadmore-orb {
+  --loadmore-fill-in: rgba(124, 140, 255, 0.06);
+  --loadmore-fill-out: rgba(124, 140, 255, 0.01);
+  transform: none;
+  border: 1px solid rgba(140, 158, 235, 0.18);
+  box-shadow: none;
+}
+/* Spent, the pile has nothing behind it: the two ghosts fade off and the front
+   disc dims to a lone point. The stack empties rather than the orb vanishing. */
+.loadmore-node[data-state='spent'] .loadmore-faces i:nth-child(1),
+.loadmore-node[data-state='spent'] .loadmore-faces i:nth-child(2) {
+  opacity: 0;
+  transform: translateY(-50%);
+}
+.loadmore-node[data-state='spent'] .loadmore-faces i:nth-child(3),
+.loadmore-node[data-state='spent']:hover .loadmore-faces i:nth-child(3) {
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  opacity: 0.4;
+  filter: none;
+  box-shadow: none;
 }
 
 /* Loading / empty / error overlay, centered over the focused orb's galaxy. */

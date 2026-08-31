@@ -2,14 +2,21 @@ import { injectedReadProfileHeader } from './profileReader';
 import { injectedScrapeExperience } from './parser';
 import { injectedScrapePeople } from './peopleParser';
 import { fetchAsDataUrl } from './images';
-import { deriveGraph, deriveOnward, personNodesFromRecords } from './graph';
-import { saveExpansion, saveGraph, saveSeed, saveTrace } from './storage';
+import { deriveGraph, deriveOnward, mergePeople, personNodesFromRecords } from './graph';
+import {
+  appendExpansionPage,
+  saveExpansion,
+  saveGraph,
+  saveSeed,
+  saveTrace,
+} from './storage';
 import type {
   CompanyExpansion,
   ExperienceEntry,
   GraphNode,
   OnwardStint,
   PersonNode,
+  PersonRecord,
   ProfileHeader,
   Seed,
 } from './types';
@@ -267,14 +274,97 @@ export class ExpandError extends Error {
   }
 }
 
-/** First-degree people search for a company name (m2-plan §5a). */
-function peopleSearchUrl(keyword: string): string {
+/** First-degree people search for a company name (m2-plan §5a). `page` is
+ *  LinkedIn's own 1-based search pagination; page 1 is left off the URL so the
+ *  M2 first load keeps the exact URL it has always used. Exported for tests. */
+export function peopleSearchUrl(keyword: string, page = 1): string {
   const k = encodeURIComponent(keyword);
-  return `https://www.linkedin.com/search/results/people/?keywords=${k}&network=%5B%22F%22%5D&origin=FACETED_SEARCH`;
+  const base = `https://www.linkedin.com/search/results/people/?keywords=${k}&network=%5B%22F%22%5D&origin=FACETED_SEARCH`;
+  return page > 1 ? `${base}&page=${page}` : base;
 }
 
 export interface ExpandRunHooks {
   onProgress?: (message: string) => void;
+}
+
+/**
+ * Open one page of a company's people search in a background worker tab, parse
+ * it, and close the tab. The whole worker-tab protocol for people lives here:
+ * background open, wait, logged-out detection, inject, and close-on-success. On
+ * any failure it throws an ExpandError carrying the tab id, leaving the tab open
+ * for the caller to surface.
+ *
+ * Shared by the first expand and every "more" page so the two can never drift on
+ * the timeout, the logged-out URL set, or (later) challenge detection. What they
+ * do with the records differs and stays with them: M2 treats an empty first page
+ * as EMPTY, M5 treats a page with nobody new as exhaustion.
+ */
+async function scrapePeoplePage(
+  keyword: string,
+  page: number,
+  loggedOutMessage: string,
+  notReadyMessage: string,
+): Promise<PersonRecord[]> {
+  let workerTabId: number | undefined;
+  try {
+    const tab = await chrome.tabs.create({
+      url: peopleSearchUrl(keyword, page),
+      active: false,
+    });
+    workerTabId = tab.id;
+    if (workerTabId === undefined) {
+      throw new ExpandError('GENERIC', 'Could not open a worker tab');
+    }
+
+    // Resolve on first complete load (no urlIncludes), then detect logged-out, so
+    // a redirect to the auth wall is reported as LOGGED_OUT, not a timeout.
+    const loaded = await waitForLoad(workerTabId);
+    if (isLoggedOutUrl(loaded.url)) {
+      throw new ExpandError('LOGGED_OUT', loggedOutMessage, workerTabId);
+    }
+
+    const records = await injectFunc(workerTabId, injectedScrapePeople, [15000]);
+    if (!Array.isArray(records)) {
+      throw new ExpandError('PARSE_NOT_READY', notReadyMessage, workerTabId);
+    }
+
+    chrome.tabs.remove(workerTabId).catch(() => {});
+    return records;
+  } catch (err) {
+    // Convert here, while the tab id is still in scope: a SeedError bubbling out
+    // of waitForLoad (timeout / tab closed) carries its own id, but a raw throw
+    // would lose ours and leave the tab open but unsurfaced.
+    throw asExpandError(err, workerTabId);
+  }
+}
+
+/** Fetch each person's photo as a data URL and attach it in place. Runs in the
+ *  home page, where licdn fetches are CORS-allowed (see `cacheImages`). */
+async function cachePhotos(people: PersonNode[]): Promise<void> {
+  await Promise.all(
+    people.map(async (p) => {
+      p.photoDataUrl = await fetchAsDataUrl(p.photoUrl);
+    }),
+  );
+}
+
+/** Surface the worker tab and rethrow as an ExpandError. Both people flows keep
+ *  the tab open on failure so the user sees the real page. */
+function asExpandError(err: unknown, workerTabId?: number): ExpandError {
+  console.error('[career-atlas] people fetch failed:', err);
+  const e =
+    err instanceof ExpandError
+      ? err
+      : new ExpandError(
+          'GENERIC',
+          err instanceof Error ? err.message : 'Something went wrong.',
+          workerTabId,
+        );
+  e.workerTabId ??= workerTabId;
+  if (e.workerTabId !== undefined) {
+    chrome.tabs.update(e.workerTabId, { active: true }).catch(() => {});
+  }
+  return e;
 }
 
 /**
@@ -290,82 +380,111 @@ export async function runExpandCompany(
 ): Promise<CompanyExpansion> {
   const progress = hooks.onProgress ?? (() => {});
   const keyword = company.name;
-  let workerTabId: number | undefined;
 
   try {
     progress(`Searching your connections at ${keyword}…`);
-    const tab = await chrome.tabs.create({
-      url: peopleSearchUrl(keyword),
-      active: false,
-    });
-    workerTabId = tab.id;
-    if (workerTabId === undefined) {
-      throw new ExpandError('GENERIC', 'Could not open a worker tab');
-    }
-
-    // Resolve on first complete load (no urlIncludes), then detect logged-out,
-    // so a redirect to the auth wall is reported as LOGGED_OUT, not a timeout.
-    const loaded = await waitForLoad(workerTabId);
-    if (isLoggedOutUrl(loaded.url)) {
-      throw new ExpandError(
-        'LOGGED_OUT',
-        'Log in to LinkedIn, then try expanding again.',
-        workerTabId,
-      );
-    }
-
-    progress('Reading people you know…');
-    const records = await injectFunc(workerTabId, injectedScrapePeople, [15000]);
-    if (!Array.isArray(records)) {
-      throw new ExpandError(
-        'PARSE_NOT_READY',
-        'The people results did not load in time. Try again.',
-        workerTabId,
-      );
-    }
+    const records = await scrapePeoplePage(
+      keyword,
+      1,
+      'Log in to LinkedIn, then try expanding again.',
+      'The people results did not load in time. Try again.',
+    );
     if (records.length === 0) {
-      throw new ExpandError(
-        'EMPTY',
-        `No first-degree connections found at ${keyword}.`,
-        workerTabId,
-      );
+      throw new ExpandError('EMPTY', `No first-degree connections found at ${keyword}.`);
     }
 
-    // Build raw person nodes, then fetch each photo as a data URL (in the home
-    // page, where licdn fetches are CORS-allowed) and attach it in place.
     progress('Caching photos…');
     const people = personNodesFromRecords(company.id, records);
-    await Promise.all(
-      people.map(async (p) => {
-        p.photoDataUrl = await fetchAsDataUrl(p.photoUrl);
-      }),
-    );
+    await cachePhotos(people);
 
     const expansion: CompanyExpansion = {
       people,
       keyword,
       fetchedAt: Date.now(),
+      pagesLoaded: 1,
+      exhausted: false,
     };
     await saveExpansion(company.id, expansion);
-
-    if (workerTabId !== undefined) {
-      chrome.tabs.remove(workerTabId).catch(() => {});
-    }
     return expansion;
   } catch (err) {
-    console.error('[career-atlas] expand failed:', err);
-    if (err instanceof ExpandError) {
-      err.workerTabId ??= workerTabId;
-      if (err.workerTabId !== undefined) {
-        chrome.tabs.update(err.workerTabId, { active: true }).catch(() => {});
-      }
-      throw err;
-    }
-    throw new ExpandError(
-      'GENERIC',
-      err instanceof Error ? err.message : 'Something went wrong.',
-      workerTabId,
+    throw asExpandError(err);
+  }
+}
+
+// === M5: page in the next batch of people (milestones "Load more and
+// exhaustion") ================================================================
+
+/** The outcome of one "more" click. `added` is the genuinely new colleagues
+ *  this page brought (the view marks them fresh so they reveal as one batch);
+ *  `exhausted` means the search had nothing new left, which is the terminal
+ *  state, not an error. */
+export interface LoadMoreResult {
+  expansion: CompanyExpansion;
+  added: PersonNode[];
+  exhausted: boolean;
+}
+
+/**
+ * Load the next page of a company's people search and fold it into the stored
+ * expansion. One page load per click, exactly like expand and trace.
+ *
+ * Exhaustion is "this page brought nobody new", not "this page was empty": a
+ * search that keeps re-serving the same faces past its last real page is spent
+ * just as surely as one that returns nothing. Either way the orb retires rather
+ * than letting the user click into the void.
+ *
+ * A page that fails to parse is a retryable error (PARSE_NOT_READY, tab
+ * surfaced), never exhaustion: we would rather the user click again than
+ * silently declare a galaxy finished because LinkedIn was slow to hydrate.
+ */
+export async function runLoadMorePeople(
+  company: GraphNode,
+  expansion: CompanyExpansion,
+  hooks: ExpandRunHooks = {},
+): Promise<LoadMoreResult> {
+  const progress = hooks.onProgress ?? (() => {});
+  const keyword = expansion.keyword || company.name;
+  const page = (expansion.pagesLoaded ?? 1) + 1;
+
+  try {
+    progress(`Looking for more people at ${keyword}…`);
+    const records = await scrapePeoplePage(
+      keyword,
+      page,
+      'Log in to LinkedIn, then try again.',
+      'The next page did not load in time. Try again.',
     );
+
+    // Merge against what we hold to find who is actually new. An empty page and
+    // a page of already-known faces both land here as `added.length === 0`.
+    const merged = mergePeople(
+      expansion.people,
+      personNodesFromRecords(company.id, records),
+    );
+    const added = merged.slice(expansion.people.length);
+    const exhausted = added.length === 0;
+
+    if (added.length > 0) {
+      progress('Caching photos…');
+      await cachePhotos(added);
+    }
+
+    const graph = await appendExpansionPage(company.id, {
+      people: merged,
+      pagesLoaded: page,
+      exhausted,
+    });
+    // Read back the PERSISTED expansion: it merged against whatever landed while
+    // this page was in flight, so it is the truth, not our snapshot. Missing it
+    // means the company left the atlas mid-fetch (a re-seed) — a real failure,
+    // not something to paper over by resurrecting a deleted expansion.
+    const next = graph?.expansions?.[company.id];
+    if (!next) {
+      throw new ExpandError('GENERIC', 'This company is no longer in your atlas.');
+    }
+    return { expansion: next, added, exhausted };
+  } catch (err) {
+    throw asExpandError(err);
   }
 }
 

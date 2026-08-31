@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { loadGraph } from '../src/storage';
+import { appendExpansionPage, loadGraph } from '../src/storage';
 import type { CareerGraph, PersonNode } from '../src/types';
 
 /** Minimal chrome.storage.local stand-in: one in-memory bag, get by key. */
@@ -70,5 +70,66 @@ describe('loadGraph legacy status migration', () => {
 
   it('returns null when nothing is stored', async () => {
     expect(await loadGraph()).toBeNull();
+  });
+});
+
+describe('appendExpansionPage', () => {
+  const person = (id: string, extra: Record<string, unknown> = {}) => ({
+    ...base,
+    id,
+    vanity: id.split(':')[1],
+    status: 'raw',
+    ...extra,
+  });
+
+  it('appends the new people and records the page count', async () => {
+    store.graph = graphWith([person('acme:a')]);
+    const graph = await appendExpansionPage('acme', {
+      people: [person('acme:a'), person('acme:b')] as PersonNode[],
+      pagesLoaded: 2,
+      exhausted: false,
+    });
+    const expansion = graph!.expansions!.acme;
+    expect(expansion.people.map((p) => p.id)).toEqual(['acme:a', 'acme:b']);
+    expect(expansion.people.map((p) => p.order)).toEqual([0, 1]);
+    expect(expansion.pagesLoaded).toBe(2);
+    expect(expansion.exhausted).toBe(false);
+  });
+
+  it('does not clobber a trace that landed while the page was in flight', async () => {
+    // Stored: 'a' was traced mid-fetch. The caller's page still carries the
+    // pre-fetch 'raw' snapshot of 'a' — the stored status must win.
+    store.graph = graphWith([person('acme:a', { status: 'traced', tracedAt: 5 })]);
+    const graph = await appendExpansionPage('acme', {
+      people: [person('acme:a'), person('acme:b')] as PersonNode[],
+      pagesLoaded: 2,
+      exhausted: false,
+    });
+    const people = graph!.expansions!.acme.people;
+    expect(people[0].status).toBe('traced');
+    expect(people[0].tracedAt).toBe(5);
+    expect(people[1].id).toBe('acme:b');
+  });
+
+  it('marks the search exhausted when a page brings nobody new', async () => {
+    store.graph = graphWith([person('acme:a')]);
+    const graph = await appendExpansionPage('acme', {
+      people: [person('acme:a')] as PersonNode[],
+      pagesLoaded: 3,
+      exhausted: true,
+    });
+    expect(graph!.expansions!.acme.people).toHaveLength(1);
+    expect(graph!.expansions!.acme.exhausted).toBe(true);
+  });
+
+  it('is a no-op when the company was never expanded', async () => {
+    store.graph = graphWith([person('acme:a')]);
+    expect(
+      await appendExpansionPage('other', {
+        people: [],
+        pagesLoaded: 2,
+        exhausted: false,
+      }),
+    ).toBeNull();
   });
 });

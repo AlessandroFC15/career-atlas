@@ -34,7 +34,10 @@ function Flow({
   view,
   onCompanyClick,
   onPersonClick,
+  onLoadMore,
   tracingIds,
+  loadingMoreId,
+  freshIds,
   onBack,
   animateIntro,
 }: {
@@ -42,7 +45,10 @@ function Flow({
   view: GraphView;
   onCompanyClick: (companyId: string) => void;
   onPersonClick: (personId: string) => void;
+  onLoadMore: (companyId: string) => void;
   tracingIds: Set<string>;
+  loadingMoreId: string | null;
+  freshIds: Set<string>;
   onBack: () => void;
   animateIntro: boolean;
 }) {
@@ -119,13 +125,30 @@ function Flow({
     if (phase.k === 'entering') return buildAtlas(graph, colors, phase.id);
     if (phase.k === 'galaxy') {
       const focus = graph.nodes.find((n) => n.id === phase.id);
-      const people = graph.expansions?.[phase.id]?.people ?? [];
+      const expansion = graph.expansions?.[phase.id];
+      const people = expansion?.people ?? [];
       return focus
-        ? buildGalaxy(focus, people, colors, now, tracingIds, onwardColors)
+        ? buildGalaxy(focus, people, colors, now, {
+            tracingIds,
+            onwardColors,
+            exhausted: !!expansion?.exhausted,
+            loading: loadingMoreId === phase.id,
+            fresh: freshIds,
+          })
         : atlasNormal;
     }
     return atlasNormal;
-  }, [phase, graph, colors, atlasNormal, now, tracingIds, onwardColors]);
+  }, [
+    phase,
+    graph,
+    colors,
+    atlasNormal,
+    now,
+    tracingIds,
+    onwardColors,
+    loadingMoreId,
+    freshIds,
+  ]);
 
   const inGalaxy = phase.k === 'galaxy';
   const peopleCount =
@@ -185,6 +208,11 @@ function Flow({
             // Trace this colleague (App no-ops if already traced; a dismissed
             // orb retries). Onward leaves are type 'onward' → not clickable.
             onPersonClick(node.id);
+          } else if (phase.k === 'galaxy' && node.type === 'loadMore') {
+            // Page in more colleagues. No guard here, matching the person branch
+            // above: App checks spent/in-flight against live state, which is the
+            // only check worth trusting (this scene is a memo, a frame stale).
+            onLoadMore(phase.id);
           }
         }}
       >
@@ -244,7 +272,10 @@ export function CareerGraph({
   view,
   onCompanyClick,
   onPersonClick,
+  onLoadMore,
   tracingIds,
+  loadingMoreId,
+  freshIds,
   onBack,
   animateIntro = false,
 }: {
@@ -252,7 +283,10 @@ export function CareerGraph({
   view: GraphView;
   onCompanyClick: (companyId: string) => void;
   onPersonClick: (personId: string) => void;
+  onLoadMore: (companyId: string) => void;
   tracingIds: Set<string>;
+  loadingMoreId: string | null;
+  freshIds: Set<string>;
   onBack: () => void;
   animateIntro?: boolean;
 }) {
@@ -263,7 +297,10 @@ export function CareerGraph({
         view={view}
         onCompanyClick={onCompanyClick}
         onPersonClick={onPersonClick}
+        onLoadMore={onLoadMore}
         tracingIds={tracingIds}
+        loadingMoreId={loadingMoreId}
+        freshIds={freshIds}
         onBack={onBack}
         animateIntro={animateIntro}
       />

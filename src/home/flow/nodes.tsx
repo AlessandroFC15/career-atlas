@@ -38,6 +38,10 @@ export type PersonNodeData = {
   // The colleague's LinkedIn profile, on lane faces only: a traced face has no
   // click of its own left (trace already happened), so the orb becomes the link.
   profileUrl?: string;
+  // Arrived on the batch a "more" click just paged in, rather than on entering
+  // the galaxy. Reveals without the camera-fly gate and at a quicker stagger:
+  // there is no long camera move to wait out on an append. Read once, at mount.
+  fresh?: boolean;
 };
 
 export type OnwardNodeData = {
@@ -190,6 +194,7 @@ function PersonNode({ data }: NodeProps<Node<PersonNodeData>>) {
     <div
       className="person-node"
       data-status={status}
+      data-fresh={data.fresh ? '' : undefined}
       data-tracing={data.tracing ? '' : undefined}
       style={style}
     >
@@ -363,31 +368,39 @@ function NowAnchorNode() {
 
 /**
  * The "show more people" affordance, as the next orb in the row: a small glassy
- * orb (a dashed outline holding an ellipsis of three tiny star-dots) sitting just
+ * orb (a dashed outline holding a facepile of blank ghost orbs) sitting just
  * past the last face, so "more here" lives where the eye already is. Click loads
- * the next page; while it
- * loads the orb shows a spinner in place. There is no count (the search pages
- * until a load returns empty), so the orb just says "more", not a number.
+ * the next page; while it loads the orb shows a spinner in place. There is no
+ * count (the search pages until a load brings nobody new), so it says "more
+ * people", not a number.
  *
  * `--i` is its slot in the people row (after the last face), so it staggers in
  * as the LAST orb of the reveal rather than popping in immediately.
  */
-function LoadMoreNode({ data }: NodeProps<Node<{ index?: number }>>) {
-  const [loading, setLoading] = useState(false);
-  const onClick = () => {
-    if (loading) return;
-    setLoading(true);
-    // No pagination backend yet: spin briefly, then settle, rather than
-    // fabricating people. Wire the real paginated fetch here, clearing `loading`
-    // when the page arrives (and removing this orb when a page comes back empty).
-    setTimeout(() => setLoading(false), 1500);
-  };
+export type LoadMoreData = {
+  index?: number;
+  /** A page is in flight: the dots give way to a spinner in place. */
+  loading?: boolean;
+  /** The search is spent: the orb dims to a terminator and stops responding.
+   *  Clicks are ignored in CareerGraph's onNodeClick, not here, so the whole
+   *  paging flow stays in one place. */
+  exhausted?: boolean;
+};
+
+function LoadMoreNode({ data }: NodeProps<Node<LoadMoreData>>) {
+  const { loading = false, exhausted = false } = data;
   return (
     <div
       className="loadmore-node"
+      data-state={exhausted ? 'spent' : loading ? 'loading' : undefined}
       style={{ width: PERSON_NODE_WIDTH, '--i': data.index ?? 0 } as CSSProperties}
-      onClick={onClick}
-      title="Show more people"
+      title={
+        exhausted
+          ? "That's everyone here"
+          : loading
+            ? 'Looking for more people…'
+            : 'Show more people'
+      }
     >
       <div
         className="loadmore-orb"
@@ -396,16 +409,26 @@ function LoadMoreNode({ data }: NodeProps<Node<{ index?: number }>>) {
         {loading ? (
           <Spinner />
         ) : (
-          // An ellipsis rendered as three tiny stars: "more", quiet and at home
-          // in the sky rather than looking like a text control.
-          <span className="loadmore-dots" aria-hidden="true">
+          // A facepile of blank orbs: two peeking out from behind a front one.
+          // It says "more faces behind these" by echoing the cluster it extends,
+          // where an ellipsis only borrowed a text-UI glyph for "menu" or
+          // "truncated". Spent, the two behind fade off and one faint disc is
+          // left: the stack has nothing more in it.
+          <span className="loadmore-faces" aria-hidden="true">
             <i />
             <i />
             <i />
           </span>
         )}
       </div>
-      <span className="loadmore-node__label">more</span>
+      {/* Always on, unlike the faces' hover-only name chips. This is a control,
+          not a face: at rest it has to say what it does, and the glyph alone
+          cannot carry "people". It also carries the state: the spinner says
+          something is happening, the label says what. Loading is checked first
+          so a click mid-flight never reads as already spent. */}
+      <span className="loadmore-node__label">
+        {loading ? 'loading…' : exhausted ? 'all here' : 'more people'}
+      </span>
     </div>
   );
 }

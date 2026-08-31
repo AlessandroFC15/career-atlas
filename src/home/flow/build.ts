@@ -3,14 +3,13 @@ import { formatTenure } from '../../format';
 import {
   AXIS_LEFT,
   AXIS_WIDTH,
-  BAND_TOP,
-  GALAXY_DROP,
   GALAXY_RESERVE_BELOW,
   GALAXY_TITLE_DROP,
   LANE_GAP,
+  galaxyGeometry,
   layout,
+  layoutCluster,
   layoutGalaxyFocus,
-  layoutGalaxyPerson,
   layoutSwimlanes,
 } from '../../graph';
 import type {
@@ -25,7 +24,12 @@ import {
   PERSON_NODE_WIDTH,
   PERSON_ORB,
 } from './dimensions';
-import type { CompanyNodeData, OnwardNodeData, PersonNodeData } from './nodes';
+import type {
+  CompanyNodeData,
+  LoadMoreData,
+  OnwardNodeData,
+  PersonNodeData,
+} from './nodes';
 
 /** A company's full LinkedIn URL from its (possibly relative) stored link, so
  *  the focus orb can offer an "open on LinkedIn" badge. */
@@ -96,16 +100,29 @@ export function buildAtlas(
  * People split by trace status (m3-plan §3, §6): 'raw'/'dismissed' stay in the
  * candidate cluster (re-indexed so a pulled-out orb's gap closes); 'traced'
  * become lane faces in the band, each with its onward leaves on the time axis.
- * `now` is injected (the layout stays pure); `tracingIds` marks orbs mid-trace
- * so they show a spinner in place. */
+ * `now` is injected (the layout stays pure); everything App knows and the graph
+ * does not — what is mid-flight, what just arrived — rides in `view`. */
+export interface GalaxyView {
+  /** Orbs with a trace in flight: they show a spinner in place. */
+  tracingIds: Set<string>;
+  /** Dominant brand colour per onward destination, keyed by convergence key. */
+  onwardColors: Record<string, string>;
+  /** The people search is spent: the "more" orb settles into its terminator. */
+  exhausted: boolean;
+  /** A page of people is in flight right now. */
+  loading: boolean;
+  /** Arrived on the last page: they reveal as a batch, without the entry gate. */
+  fresh: Set<string>;
+}
+
 export function buildGalaxy(
   focus: GraphNode,
   people: PersonNodeModel[],
   colors: Record<string, string>,
   now: DateParts,
-  tracingIds: Set<string> = new Set(),
-  onwardColors: Record<string, string> = {},
+  view: GalaxyView,
 ): { nodes: Node[]; edges: Edge[] } {
+  const { tracingIds, onwardColors } = view;
   const base = layout(focus.order);
   const focusRel = layoutGalaxyFocus();
   const focusNode: Node<CompanyNodeData> = {
@@ -134,23 +151,40 @@ export function buildGalaxy(
     .filter((p) => p.status === 'traced')
     .sort((a, b) => (b.tracedAt ?? 0) - (a.tracedAt ?? 0));
 
-  // The "show more" orb (added below) is the next orb in the row, so it counts
-  // as a slot when centering: faces + orb are centered together, otherwise the
+  // The "show more" orb trails the last face on its row, so it counts as a slot
+  // when centering that row: faces + orb are centered together, otherwise the
   // row leans left as the orb tacks on past the centered faces.
   //
   // It loads MORE colleagues, which has nothing to do with how many of the
   // current batch you have clicked: so it stays as long as this galaxy has any
   // people at all, even once every candidate has been traced into a lane (the
   // cluster is then empty but more may still be out there). It only disappears
-  // for a truly empty galaxy (no colleagues to page past) or, in future, once a
-  // page comes back empty.
+  // for a truly empty galaxy (no colleagues to page past).
+  //
+  // Once the search is exhausted the orb does NOT vanish: it stays in its slot
+  // as a spent, unclickable terminator ("all here"), so the row ends with an
+  // answer to "is that everyone?" rather than a silent stop. Keeping the slot
+  // also means exhaustion doesn't re-center the row under the user's cursor.
   const hasMore = people.length > 0;
-  const rowSlots = cluster.length + (hasMore ? 1 : 0);
+
+  // The cluster wraps every GALAXY_ROW_MAX FACES (see layoutCluster), so paging
+  // in more people grows it downward rather than stretching one row off both
+  // edges of the screen. `galaxyGeometry` owns where that leaves everything
+  // below it. The "more" orb rides the last row's trailing slot, so it never
+  // adds a row of its own.
+  const slots = layoutCluster(cluster.length, hasMore);
+  const geo = galaxyGeometry(cluster.length);
 
   // Re-index the cluster among its own members (not p.order), so pulling one orb
   // out into a lane closes the gap and the rest re-center.
+  // A freshly paged-in orb waves in among ITS OWN batch (0, 1, 2, …), not from
+  // its grid slot, so the batch sweeps cleanly even when it starts mid-row and
+  // the wave's length tracks the page size, not the cluster size.
+  const freshOrder = new Map(
+    cluster.filter((p) => view.fresh.has(p.id)).map((p, n) => [p.id, n] as const),
+  );
   const personNodes: Node<PersonNodeData>[] = cluster.map((p, i) => {
-    const rel = layoutGalaxyPerson(i, rowSlots);
+    const rel = slots[i];
     return {
       id: p.id,
       type: 'person',
@@ -168,7 +202,12 @@ export function buildGalaxy(
       data: {
         name: p.name,
         photoDataUrl: p.photoDataUrl,
-        index: i,
+        // Reveal index: a diagonal wave across the grid (col + row), not the
+        // raw slot. On a single row that is just the slot, as before; wrapped,
+        // it keeps the whole cascade inside about a second instead of letting
+        // 30 orbs stagger for three and a half.
+        index: freshOrder.get(p.id) ?? rel.col + rel.row,
+        fresh: freshOrder.has(p.id),
         status: p.status,
         tracing: tracingIds.has(p.id),
         companyName: focus.name,
@@ -182,38 +221,42 @@ export function buildGalaxy(
   // candidates are traced out). Placed here, not as a screen-pinned pill, so
   // "more" reads right where the cluster ends. When the cluster is empty (every
   // candidate traced into a lane), the orb sits alone in the row's single slot,
-  // still offering to page in more colleagues. The orb owns its own loading state.
-  const moreNodes: Node[] = !hasMore
+  // still offering to page in more colleagues. Its loading and spent states are
+  // owned by App (like tracingIds), so a failed page has somewhere to surface.
+  // layoutCluster only emits the trailing slot when asked for it, so this is
+  // present exactly when the orb is.
+  const moreSlot = hasMore ? slots[cluster.length] : undefined;
+  const moreNodes: Node<LoadMoreData>[] = !moreSlot
     ? []
-    : (() => {
-        const rel = layoutGalaxyPerson(cluster.length, rowSlots);
-        return [
-          {
-            id: `more-${focus.id}`,
-            type: 'loadMore',
-            position: {
-              x: rowCenterX + rel.x - PERSON_NODE_WIDTH / 2,
-              y: base.y + GALAXY_DROP,
-            },
-            // Same fixed size as the faces so it reveals in step with the row,
-            // not whenever its own measurement lands (see person nodes above).
-            width: PERSON_NODE_WIDTH,
-            height: PERSON_ORB,
-            // The orb's slot in the row (right after the last face), so its reveal
-            // staggers in as the LAST orb, not all at once before the faces.
-            data: { index: cluster.length },
-            draggable: false,
-            // Selectable keeps pointer-events on for the orb's own click/hover;
-            // it has no onNodeClick branch, so canvas selection stays inert.
-            selectable: true,
+    : [
+        {
+          id: `more-${focus.id}`,
+          type: 'loadMore',
+          position: {
+            x: rowCenterX + moreSlot.x - PERSON_NODE_WIDTH / 2,
+            y: base.y + moreSlot.y,
           },
-        ];
-      })();
+          // Same fixed size as the faces so it reveals in step with the row,
+          // not whenever its own measurement lands (see person nodes above).
+          width: PERSON_NODE_WIDTH,
+          height: PERSON_ORB,
+          data: {
+            // Its own grid cell, trailing the last face, so its reveal staggers
+            // in as the LAST orb of the wave rather than ahead of the faces.
+            index: moreSlot.col + moreSlot.row,
+            loading: view.loading,
+            exhausted: view.exhausted,
+          },
+          draggable: false,
+          // Selectable keeps pointer-events on for the orb's own click/hover.
+          selectable: true,
+        },
+      ];
 
   // The swimlane band: one lane per traced colleague (face + onward leaves),
   // lane beams in date order, and convergence threads where ≥2 lanes share a
   // destination (m3-plan §6).
-  const sw = layoutSwimlanes(focus, traced, now);
+  const sw = layoutSwimlanes(focus, traced, now, geo.bandTop);
   const laneNodes: Node[] = [];
   const laneEdges: Edge[] = [];
   const leafId = (laneIndex: number, leafIndex: number) =>
@@ -327,8 +370,8 @@ export function buildGalaxy(
     laneNodes.push({
       id: `now-${focus.id}`,
       type: 'nowLine',
-      position: { x: nowWorldX, y: base.y + BAND_TOP - NOW_PAD },
-      data: { height: sw.bottomY - BAND_TOP + NOW_PAD * 2 },
+      position: { x: nowWorldX, y: base.y + geo.bandTop - NOW_PAD },
+      data: { height: sw.bottomY - geo.bandTop + NOW_PAD * 2 },
       draggable: false,
       selectable: false,
     });
@@ -357,7 +400,7 @@ export function buildGalaxy(
   // composition; reframes as the band grows.
   const reserveY = traced.length
     ? base.y + sw.bottomY + LANE_GAP
-    : base.y + GALAXY_DROP + GALAXY_RESERVE_BELOW;
+    : base.y + geo.clusterBottom + GALAXY_RESERVE_BELOW;
   const reserveNode: Node = {
     id: `reserve-${focus.id}`,
     type: 'spacer',

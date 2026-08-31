@@ -7,14 +7,18 @@ import {
   FACE_GUTTER,
   GALAXY_DROP,
   GALAXY_PERSON_GAP,
+  GALAXY_ROW_GAP,
   LANE_GAP,
   MIN_LEAF_GAP,
+  galaxyGeometry,
+  clusterRowCount,
   deriveGraph,
   deriveOnward,
   layout,
   layoutGalaxyFocus,
-  layoutGalaxyPerson,
+  layoutCluster,
   layoutSwimlanes,
+  mergePeople,
   personNodesFromRecords,
   swimlaneX,
 } from '../src/graph';
@@ -162,23 +166,100 @@ describe('layoutGalaxy', () => {
     expect(layoutGalaxyFocus()).toEqual({ x: 0, y: 0 });
   });
 
-  it('lays people in a centered horizontal row below the focus', () => {
-    const row = [0, 1, 2].map((o) => layoutGalaxyPerson(o, 3));
-    // All on one row, centered around x=0: -gap, 0, +gap.
-    expect(row.map((p) => p.y)).toEqual([GALAXY_DROP, GALAXY_DROP, GALAXY_DROP]);
-    expect(row.map((p) => p.x)).toEqual([
-      -GALAXY_PERSON_GAP,
-      0,
-      GALAXY_PERSON_GAP,
-    ]);
-  });
-
   it('centers a single person directly under the focused star', () => {
-    expect(layoutGalaxyPerson(0, 1)).toEqual({ x: 0, y: GALAXY_DROP });
+    expect(layoutCluster(1, false)[0]).toEqual({ x: 0, y: GALAXY_DROP, row: 0, col: 0 });
   });
 
   it('keeps the people row clear of the focused star', () => {
-    expect(layoutGalaxyPerson(0, 4).y).toBeGreaterThan(layoutGalaxyFocus().y);
+    expect(layoutCluster(4, false)[0].y).toBeGreaterThan(layoutGalaxyFocus().y);
+  });
+
+  it('keeps a cluster of ten faces on one row', () => {
+    const ys = layoutCluster(10, false).map((s) => s.y);
+    expect(new Set(ys).size).toBe(1);
+    expect(clusterRowCount(10)).toBe(1);
+  });
+
+  it('wraps the eleventh face onto a second row', () => {
+    const slots = layoutCluster(11, false);
+    expect(slots[10].y).toBe(slots[9].y + GALAXY_ROW_GAP);
+    expect(clusterRowCount(11)).toBe(2);
+  });
+
+  it('never puts more than ten faces on any row', () => {
+    const perRow = new Map<number, number>();
+    for (const { y } of layoutCluster(34, false)) {
+      perRow.set(y, (perRow.get(y) ?? 0) + 1);
+    }
+    expect(Math.max(...perRow.values())).toBeLessThanOrEqual(10);
+    expect(perRow.size).toBe(clusterRowCount(34)); // 4 rows: 10/10/10/4
+  });
+
+  it('centers each row on its own occupancy, including a part-full last row', () => {
+    // 23 people wrap 10 / 10 / 3. Every row's x-range must be symmetric about 0.
+    const xs = layoutCluster(23, false).map((s) => s.x);
+    for (const [from, to] of [[0, 9], [10, 19], [20, 22]]) {
+      expect(xs[from] + xs[to]).toBeCloseTo(0);
+    }
+  });
+
+  it('slides everything below the cluster down by each extra row', () => {
+    // BAND_TOP and GALAXY_DROP describe the one-row case only; the band and the
+    // last cluster row move together as the cluster wraps.
+    expect(galaxyGeometry(10)).toEqual({
+      rows: 1,
+      bandTop: BAND_TOP,
+      clusterBottom: GALAXY_DROP,
+    });
+    expect(galaxyGeometry(11)).toEqual({
+      rows: 2,
+      bandTop: BAND_TOP + GALAXY_ROW_GAP,
+      clusterBottom: GALAXY_DROP + GALAXY_ROW_GAP,
+    });
+    expect(galaxyGeometry(21).bandTop).toBe(BAND_TOP + 2 * GALAXY_ROW_GAP);
+  });
+});
+
+describe('layoutCluster: the trailing "more" orb', () => {
+  it('trails the last face on a part-full row', () => {
+    const slots = layoutCluster(3, true);
+    expect(slots).toHaveLength(4);
+    expect(slots[3].y).toBe(slots[2].y); // same row as the faces
+    expect(slots[3].x).toBe(slots[2].x + GALAXY_PERSON_GAP);
+  });
+
+  it('takes an eleventh slot rather than a lonely row when the row is full', () => {
+    const slots = layoutCluster(20, true);
+    expect(slots).toHaveLength(21);
+    // Row 2 is ten faces plus the orb: the orb stays ON that row, and the
+    // composition is still two rows tall (the regression this fixes).
+    expect(slots[20].y).toBe(slots[19].y);
+    expect(slots[20].x).toBe(slots[19].x + GALAXY_PERSON_GAP);
+    expect(clusterRowCount(20)).toBe(2);
+    expect(new Set(slots.map((s) => s.y)).size).toBe(2);
+  });
+
+  it('centers the orb row counting the orb, so it does not lean left', () => {
+    const slots = layoutCluster(20, true);
+    const last = slots.slice(10); // ten faces + the orb
+    expect(last[0].x + last[last.length - 1].x).toBeCloseTo(0);
+    // The full row WITHOUT the orb stays centered on its own ten.
+    expect(slots[0].x + slots[9].x).toBeCloseTo(0);
+  });
+
+  it('centers the orb alone when there are no faces left to trail', () => {
+    expect(layoutCluster(0, true)).toEqual([{ x: 0, y: GALAXY_DROP, row: 0, col: 0 }]);
+  });
+
+  it('emits nothing extra when there is no more to load', () => {
+    expect(layoutCluster(5, false)).toHaveLength(5);
+  });
+
+  it('carries each slot\'s grid cell, so the renderer never re-derives the wrap', () => {
+    const slots = layoutCluster(12, true);
+    expect(slots.map((s) => [s.row, s.col]).slice(0, 2)).toEqual([[0, 0], [0, 1]]);
+    expect([slots[10].row, slots[10].col]).toEqual([1, 0]); // wrapped
+    expect([slots[12].row, slots[12].col]).toEqual([1, 2]); // the trailing orb
   });
 });
 
@@ -213,6 +294,62 @@ describe('personNodesFromRecords', () => {
     expect(nodes[0].photoDataUrl).toBeUndefined();
     // M3 regression: fresh people carry no onward trajectory until traced.
     expect(nodes.every((n) => n.onward === undefined)).toBe(true);
+  });
+});
+
+// --- M5: folding a second page of people into the ones already held ---
+
+describe('mergePeople', () => {
+  it('appends genuinely new people and re-indexes the whole row', () => {
+    const page1 = personNodesFromRecords('c1', [record('a'), record('b')]);
+    const page2 = personNodesFromRecords('c1', [record('c'), record('d')]);
+    const merged = mergePeople(page1, page2);
+    expect(merged.map((p) => p.vanity)).toEqual(['a', 'b', 'c', 'd']);
+    expect(merged.map((p) => p.order)).toEqual([0, 1, 2, 3]);
+  });
+
+  it('keeps a traced person traced when the next page lists them again', () => {
+    const [ada] = personNodesFromRecords('c1', [record('ada')]);
+    const kept = [{ ...ada, status: 'traced' as const, onward: [], tracedAt: 7 }];
+    // page 2 re-serves Ada as a fresh 'raw' record, plus someone new.
+    const incoming = personNodesFromRecords('c1', [record('ada'), record('bob')]);
+    const merged = mergePeople(kept, incoming);
+    expect(merged).toHaveLength(2);
+    expect(merged[0].status).toBe('traced');
+    expect(merged[0].tracedAt).toBe(7);
+    expect(merged[1].vanity).toBe('bob');
+  });
+
+  it('keeps a dismissed person dismissed', () => {
+    const [x] = personNodesFromRecords('c1', [record('x')]);
+    const merged = mergePeople(
+      [{ ...x, status: 'dismissed' as const }],
+      personNodesFromRecords('c1', [record('x')]),
+    );
+    expect(merged.map((p) => p.status)).toEqual(['dismissed']);
+  });
+
+  it('is idempotent: merging the same page twice adds nobody', () => {
+    const page1 = personNodesFromRecords('c1', [record('a')]);
+    const page2 = personNodesFromRecords('c1', [record('b')]);
+    const once = mergePeople(page1, page2);
+    expect(mergePeople(once, page2)).toEqual(once);
+  });
+
+  it('dedups within a single incoming page', () => {
+    const merged = mergePeople(
+      [],
+      personNodesFromRecords('c1', [record('a'), record('a'), record('b')]),
+    );
+    expect(merged.map((p) => p.vanity)).toEqual(['a', 'b']);
+  });
+
+  it('scopes dedup to the company, so the same human under two is two nodes', () => {
+    const merged = mergePeople(
+      personNodesFromRecords('c1', [record('a')]),
+      personNodesFromRecords('c2', [record('a')]),
+    );
+    expect(merged.map((p) => p.id)).toEqual(['c1:a', 'c2:a']);
   });
 });
 
@@ -393,6 +530,7 @@ describe('layoutSwimlanes', () => {
         personWithOnward('p1', [stint('B', { year: 2021 })]),
       ],
       now,
+      BAND_TOP,
     );
     expect(out.lanes.map((l) => l.laneIndex)).toEqual([0, 1]);
     expect(out.lanes[0].faceY).toBe(BAND_TOP);
@@ -407,6 +545,7 @@ describe('layoutSwimlanes', () => {
       focus,
       [personWithOnward('p0', [stint('Early', { year: 2016 })])],
       now,
+      BAND_TOP,
     );
     const lane = out.lanes[0];
     expect(lane.leaves[0].x - lane.faceX).toBeGreaterThanOrEqual(FACE_GUTTER - 0.001);
@@ -425,6 +564,7 @@ describe('layoutSwimlanes', () => {
         ]),
       ],
       now,
+      BAND_TOP,
     );
     const lane = out.lanes[0];
     expect(lane.leaves[0].x).toBeGreaterThanOrEqual(AXIS_LEFT - 0.001);
@@ -436,6 +576,7 @@ describe('layoutSwimlanes', () => {
       focus,
       [personWithOnward('p0', [stint('Soon', { year: 2017, month: 3 })])],
       now,
+      BAND_TOP,
     );
     const lane = out.lanes[0];
     expect(lane.leaves[0].x - lane.faceX).toBeGreaterThanOrEqual(FACE_GUTTER - 0.001);
@@ -446,6 +587,7 @@ describe('layoutSwimlanes', () => {
       focus,
       [personWithOnward('p0', [stint('Mid', { year: 2022 })])],
       now,
+      BAND_TOP,
     );
     const leaf = out.lanes[0].leaves[0];
     expect(leaf.x).toBeCloseTo(AXIS_LEFT + AXIS_WIDTH / 2);
@@ -463,6 +605,7 @@ describe('layoutSwimlanes', () => {
         ]),
       ],
       now,
+      BAND_TOP,
     );
     expect(out.convergences).toHaveLength(1);
     expect(out.convergences[0].key).toBe('urn:nubank');
@@ -486,6 +629,7 @@ describe('layoutSwimlanes', () => {
         ]),
       ],
       now,
+      BAND_TOP,
     );
     expect(out.convergences).toEqual([]);
   });
@@ -496,6 +640,7 @@ describe('layoutSwimlanes', () => {
       focus,
       [personWithOnward('p0', [stint('A', { year: 2019 }), stint('B', { year: 2024 })])],
       now,
+      BAND_TOP,
     );
     const [a, b] = out.lanes[0].leaves;
     expect(a.x).toBeCloseTo(swimlaneX({ year: 2019 }, { year: 2017 }, now));
@@ -507,6 +652,7 @@ describe('layoutSwimlanes', () => {
       focus,
       [personWithOnward('p0', [stint('RNP', { year: 2018 }), stint('UFPA', { year: 2019 })])],
       now,
+      BAND_TOP,
     );
     const [a, b] = out.lanes[0].leaves;
     expect(b.x - a.x).toBeCloseTo(MIN_LEAF_GAP);
@@ -520,6 +666,7 @@ describe('layoutSwimlanes', () => {
       focus,
       [personWithOnward('p0', [stint('RNP', { year: 2018 }), stint('UFPA', { year: 2019 })])],
       now,
+      BAND_TOP,
     );
     const [a, b] = out.lanes[0].leaves;
     expect(a.x).toBeLessThan(trueA);
@@ -539,6 +686,7 @@ describe('layoutSwimlanes', () => {
         ]),
       ],
       now,
+      BAND_TOP,
     );
     const xs = out.lanes[0].leaves.map((l) => l.x);
     expect(xs[1] - xs[0]).toBeGreaterThanOrEqual(MIN_LEAF_GAP - 0.001);
@@ -557,6 +705,7 @@ describe('layoutSwimlanes', () => {
         ]),
       ],
       now,
+      BAND_TOP,
     );
     const xs = out.lanes[0].leaves.map((l) => l.x);
     expect(xs[xs.length - 1]).toBeLessThanOrEqual(AXIS_LEFT + AXIS_WIDTH + 0.001);
@@ -574,6 +723,7 @@ describe('layoutSwimlanes', () => {
         personWithOnward('p1', [stint('Nubank', { year: 2023 }, { companyUrn: 'urn:nubank' })]),
       ],
       now,
+      BAND_TOP,
     );
     const member = out.convergences[0].members.find((m) => m.laneIndex === 0);
     expect(member?.x).toBeCloseTo(out.lanes[0].leaves[1].x);
@@ -587,6 +737,7 @@ describe('layoutSwimlanes', () => {
         personWithOnward('p1', [stint('  loft  ', { year: 2022 })]),
       ],
       now,
+      BAND_TOP,
     );
     expect(out.convergences).toHaveLength(1);
     expect(out.convergences[0].key).toBe('loft');

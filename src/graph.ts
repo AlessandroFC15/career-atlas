@@ -91,9 +91,53 @@ export const GALAXY_TITLE_DROP = 158;
 /** Horizontal gap between adjacent people in the row. Tight, since names are
  *  hidden by default (shown on hover), so the orbs read as a close cluster. */
 export const GALAXY_PERSON_GAP = 78;
+/** Most orbs on one cluster row before it wraps. A search page is ~10 people,
+ *  so this is also "one page per row": paging in more grows the cluster
+ *  downward in legible bands instead of stretching one row off both edges of
+ *  the screen (which is what fitView then has to zoom out to frame). */
+export const GALAXY_ROW_MAX = 10;
+/** Vertical gap between wrapped cluster rows. Clears the 60px person orb with
+ *  room for the hover name chip to float without touching the row below. */
+export const GALAXY_ROW_GAP = 92;
+
 /** Empty room reserved BELOW the people row, so the composition sits high and
  *  there is space for each person's onward trajectory (M4) to grow downward. */
 export const GALAXY_RESERVE_BELOW = 300;
+
+/** How many rows `faceCount` candidate orbs wrap into (at least one, so an
+ *  empty cluster still reserves the row the "more" orb sits on). Counts FACES
+ *  only: the "more" orb rides along on the last row, never starting its own. */
+export function clusterRowCount(faceCount: number): number {
+  return Math.max(1, Math.ceil(faceCount / GALAXY_ROW_MAX));
+}
+
+/**
+ * The galaxy's vertical stack for a cluster of `faceCount` faces, all in one
+ * place so nothing hanging below the cluster has to remember to add the wrap
+ * offset itself (and be wrong by a row gap when it forgets).
+ *
+ * `bandTop` is where the swimlanes start and `clusterBottom` is the last
+ * cluster row's baseline; both slide down as the cluster wraps. BAND_TOP is
+ * only the band's top for a single-row cluster, so read this, not the constant.
+ */
+export function galaxyGeometry(faceCount: number): {
+  rows: number;
+  bandTop: number;
+  clusterBottom: number;
+} {
+  const rows = clusterRowCount(faceCount);
+  const drop = (rows - 1) * GALAXY_ROW_GAP;
+  return { rows, bandTop: BAND_TOP + drop, clusterBottom: GALAXY_DROP + drop };
+}
+
+/** One orb's place in the candidate cluster: where it sits, and which grid cell
+ *  it occupies (the reveal cascade staggers on `row + col`). */
+export interface ClusterSlot {
+  x: number;
+  y: number;
+  row: number;
+  col: number;
+}
 
 /** The focused company sits at the galaxy origin (top, centered). */
 export function layoutGalaxyFocus(): { x: number; y: number } {
@@ -101,15 +145,47 @@ export function layoutGalaxyFocus(): { x: number; y: number } {
 }
 
 /**
- * Person at position `order` of `count`: a single horizontal row centered below
- * the focused orb, so the spokes fan out symmetrically from the company.
+ * Lay out the candidate cluster below the focused orb: `faceCount` person orbs
+ * wrapping at GALAXY_ROW_MAX per row, plus (when `withMore`) the "more" orb as
+ * a TRAILING slot on the last row.
+ *
+ * The cap is on FACES, not on slots, which is what lets an exactly-full last
+ * row become eleven wide: ten faces and the orb. That keeps "more" reading as
+ * the row continuing, which is the whole reason it lives in the row instead of
+ * being a pill pinned to the window. Give it its own slot count and a full row
+ * exiles it to a lonely centered row of its own, detached from the faces it
+ * extends.
+ *
+ * Each row is centered on its OWN occupancy, not on the widest row, so a
+ * part-full last row (23 people wrap 10 / 10 / 3) sits centered under the full
+ * ones rather than hanging off to the left.
+ *
+ * Returns the face slots in order, followed by the "more" orb's when
+ * `withMore` — so the caller reads slot `faceCount` as the orb. Each slot
+ * carries its grid `row`/`col` alongside the point, so the renderer never has
+ * to decompose the flat index and re-derive the wrap rule for itself.
  */
-export function layoutGalaxyPerson(
-  order: number,
-  count: number,
-): { x: number; y: number } {
-  const centered = order - (count - 1) / 2;
-  return { x: centered * GALAXY_PERSON_GAP, y: GALAXY_DROP };
+export function layoutCluster(
+  faceCount: number,
+  withMore: boolean,
+): ClusterSlot[] {
+  const rows = clusterRowCount(faceCount);
+  return Array.from({ length: faceCount + (withMore ? 1 : 0) }, (_, i) => {
+    // The trailing "more" slot clamps onto the last row instead of starting one,
+    // so it runs through the identical centering expression as every face and
+    // the two can never disagree.
+    const row = Math.min(Math.floor(i / GALAXY_ROW_MAX), rows - 1);
+    const col = i - row * GALAXY_ROW_MAX;
+    const faces = Math.min(GALAXY_ROW_MAX, faceCount - row * GALAXY_ROW_MAX);
+    // Only the last row makes room for the "more" orb when centering.
+    const inRow = faces + (withMore && row === rows - 1 ? 1 : 0);
+    return {
+      x: (col - (inRow - 1) / 2) * GALAXY_PERSON_GAP,
+      y: GALAXY_DROP + row * GALAXY_ROW_GAP,
+      row,
+      col,
+    };
+  });
 }
 
 /**
@@ -136,6 +212,32 @@ export function personNodesFromRecords(
     status: 'raw' as const,
     order: index,
   }));
+}
+
+/**
+ * Fold a freshly parsed page of people into the ones already held (M5).
+ *
+ * The kept list wins on every collision: a colleague you have already traced
+ * must not revert to 'raw' (and lose their lane) just because page 2 of the
+ * search still lists them, and a dismissed orb must stay dismissed. So a record
+ * whose id is already present is dropped entirely, not merged field-by-field.
+ * Genuinely new people append in page order, and `order` is reassigned across
+ * the whole list so the cluster stays a contiguous, gap-free grid.
+ *
+ * Pure and idempotent: merging a page twice is the same as merging it once.
+ */
+export function mergePeople(
+  kept: PersonNode[],
+  incoming: PersonNode[],
+): PersonNode[] {
+  const seen = new Set(kept.map((p) => p.id));
+  const added: PersonNode[] = [];
+  for (const p of incoming) {
+    if (seen.has(p.id)) continue; // already held, or a dupe within this page
+    seen.add(p.id);
+    added.push(p);
+  }
+  return [...kept, ...added].map((p, index) => ({ ...p, order: index }));
 }
 
 // --- M3: trace where a colleague went (m3-plan §5, §6). Anchor a colleague's
@@ -198,7 +300,7 @@ export function deriveOnward(
 }
 
 // Swimlane band geometry (m3-plan §6). Coordinates are RELATIVE to the galaxy's
-// row center (x) and the focused orb's base y, exactly like layoutGalaxyPerson,
+// row center (x) and the focused orb's base y, exactly like layoutCluster,
 // so build.ts can offset them the same way. The band sits below the candidate
 // cluster; lanes stack downward in click order.
 /** Top of the band, below the people cluster row (GALAXY_DROP). */
@@ -341,18 +443,23 @@ function spaceLeaves(xs: number[], gap: number): number[] {
  * `[focus.start, now]`. Onward leaves sit at their true start dates, nudged apart
  * only where they would otherwise collide (`spaceLeaves`); companies
  * reached by ≥2 colleagues are flagged convergent and returned as groups so the
- * renderer can draw the shared glow + threads. Pure: `now` is injected.
+ * renderer can draw the shared glow + threads. Pure: `now` and `bandTop` are
+ * injected; `bandTop` comes from `galaxyGeometry`, which moves the whole band
+ * down when the candidate cluster has wrapped onto extra rows, so the lanes
+ * never slide up under the orbs. Required, not defaulted: BAND_TOP alone is
+ * only correct for a one-row cluster.
  */
 export function layoutSwimlanes(
   focus: GraphNode,
   tracedPeople: PersonNode[],
   now: DateParts,
+  bandTop: number,
 ): SwimlaneLayout {
   const min = focus.start;
   const max = now;
 
   const lanes: Swimlane[] = tracedPeople.map((person, laneIndex) => {
-    const faceY = BAND_TOP + laneIndex * LANE_GAP;
+    const faceY = bandTop + laneIndex * LANE_GAP;
     const stints = person.onward ?? [];
     // True dates first, then a spacing pass so close starts stay readable.
     const xs = spaceLeaves(
@@ -396,6 +503,6 @@ export function layoutSwimlanes(
     });
   });
 
-  const bottomY = lanes.length ? BAND_TOP + (lanes.length - 1) * LANE_GAP : BAND_TOP;
+  const bottomY = lanes.length ? bandTop + (lanes.length - 1) * LANE_GAP : bandTop;
   return { lanes, convergences, bottomY };
 }
