@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import { Avatar, CompanyLogo, Spinner } from '../components';
+import { t } from '../../i18n';
 import {
   handleStyle,
   LOGO,
@@ -116,11 +117,11 @@ function CompanyNode({ data }: NodeProps<Node<CompanyNodeData>>) {
 
 // Flavour captions cycled under an orb while its trace runs. Not tied to real
 // phases (the trace is fast now); they just keep the wait feeling alive.
-const TRACE_MESSAGES = [
-  'Opening their profile…',
-  'Reading their history…',
-  'Tracing where they went…',
-  'Charting the path…',
+const TRACE_MESSAGE_KEYS = [
+  'traceMessageOpeningProfile',
+  'traceMessageReadingHistory',
+  'traceMessageTracing',
+  'traceMessageCharting',
 ];
 
 /** Cycle through the trace captions on a timer while `active`; resets when idle. */
@@ -131,10 +132,10 @@ function useTraceMessage(active: boolean): string | null {
       setI(0);
       return;
     }
-    const id = setInterval(() => setI((n) => (n + 1) % TRACE_MESSAGES.length), 1700);
+    const id = setInterval(() => setI((n) => (n + 1) % TRACE_MESSAGE_KEYS.length), 1700);
     return () => clearInterval(id);
   }, [active]);
-  return active ? TRACE_MESSAGES[i] : null;
+  return active ? t(TRACE_MESSAGE_KEYS[i]) : null;
 }
 
 /**
@@ -218,8 +219,8 @@ function PersonNode({ data }: NodeProps<Node<PersonNodeData>>) {
             href={orbLink}
             target="_blank"
             rel="noopener noreferrer"
-            title={`Open ${data.name} on LinkedIn`}
-            aria-label={`Open ${data.name} on LinkedIn`}
+            title={t('openOnLinkedIn', data.name)}
+            aria-label={t('openOnLinkedIn', data.name)}
             onClick={(e) => e.stopPropagation()}
           >
             {orb}
@@ -234,7 +235,7 @@ function PersonNode({ data }: NodeProps<Node<PersonNodeData>>) {
             orb instead reveals the false-positive hint. */}
         <span className="person-node__name">
           {status === 'dismissed'
-            ? `didn't work at ${data.companyName ?? 'here'}`
+            ? t('didntWorkAt', data.companyName ?? t('here'))
             : data.name}
         </span>
         {/* While a trace runs, a caption cycles flavour messages below the orb
@@ -246,7 +247,7 @@ function PersonNode({ data }: NodeProps<Node<PersonNodeData>>) {
             the lone face reads as intentional, not broken. */}
         {status === 'traced' && data.terminal && (
           <span className="person-node__caption">
-            still at {data.companyName ?? 'here'}
+            {t('stillAt', data.companyName ?? t('here'))}
           </span>
         )}
       </div>
@@ -295,8 +296,8 @@ function OnwardNode({ data }: NodeProps<Node<OnwardNodeData>>) {
             href={data.companyUrl}
             target="_blank"
             rel="noopener noreferrer"
-            title={`Open ${data.name} on LinkedIn`}
-            aria-label={`Open ${data.name} on LinkedIn`}
+            title={t('openOnLinkedIn', data.name)}
+            aria-label={t('openOnLinkedIn', data.name)}
             onClick={(e) => e.stopPropagation()}
           >
             <CompanyLogo dataUrl={data.logoDataUrl} name={data.name} size={ONWARD_ORB} />
@@ -330,9 +331,9 @@ export type GalaxyTitleData = { companyName?: string };
 function GalaxyTitleNode({ data }: NodeProps<Node<GalaxyTitleData>>) {
   return (
     <div className="galaxy-title">
-      <h2 className="galaxy-title__head">People you probably know</h2>
+      <h2 className="galaxy-title__head">{t('peopleYouProbablyKnow')}</h2>
       <p className="galaxy-title__sub">
-        Tap a face to follow their path after {data.companyName ?? 'here'}.
+        {t('tapFaceToFollow', data.companyName ?? t('here'))}
       </p>
     </div>
   );
@@ -351,7 +352,7 @@ function SpacerNode() {
 function NowLineNode({ data }: NodeProps<Node<{ height: number }>>) {
   return (
     <div className="now-line" style={{ height: data.height }}>
-      <span className="now-line__label">now</span>
+      <span className="now-line__label">{t('nowLabel')}</span>
     </div>
   );
 }
@@ -396,10 +397,10 @@ function LoadMoreNode({ data }: NodeProps<Node<LoadMoreData>>) {
       style={{ width: PERSON_NODE_WIDTH, '--i': data.index ?? 0 } as CSSProperties}
       title={
         exhausted
-          ? "That's everyone here"
+          ? t('loadMoreTitleExhausted')
           : loading
-            ? 'Looking for more people…'
-            : 'Show more people'
+            ? t('loadMoreTitleLoading')
+            : t('loadMoreTitleDefault')
       }
     >
       <div
@@ -427,7 +428,11 @@ function LoadMoreNode({ data }: NodeProps<Node<LoadMoreData>>) {
           something is happening, the label says what. Loading is checked first
           so a click mid-flight never reads as already spent. */}
       <span className="loadmore-node__label">
-        {loading ? 'loading…' : exhausted ? 'all here' : 'more people'}
+        {loading
+          ? t('loadMoreLabelLoading')
+          : exhausted
+            ? t('loadMoreLabelExhausted')
+            : t('loadMoreLabelDefault')}
       </span>
     </div>
   );

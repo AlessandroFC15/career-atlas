@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { scatterPoint } from '../scatter';
+import { t } from '../i18n';
 import type { SeedProgress } from '../orchestrator';
 
 // The phases that own a beat in the void. `logo-cached` is a tick, not a phase.
@@ -90,13 +91,13 @@ export function useSeedReveal() {
   return { progress, push, reset };
 }
 
-// Copy lives here, not on the wire: one place to reword a line (§7).
-const PHASE_TEXT: Record<SeedPhase, string> = {
-  'opening-profile': 'Opening your LinkedIn profile…',
-  'reading-header': 'Reading your name and photo…',
-  'opening-experience': 'Opening your full experience list…',
-  'reading-experience': 'Reading your experience…',
-  caching: 'Charting your companies…',
+// Message keys live here, not on the wire: one place to reword a line (§7).
+const PHASE_TEXT_KEY: Record<SeedPhase, string> = {
+  'opening-profile': 'phaseOpeningProfile',
+  'reading-header': 'phaseReadingHeader',
+  'opening-experience': 'phaseOpeningExperience',
+  'reading-experience': 'phaseReadingExperience',
+  caching: 'phaseCaching',
 };
 
 // Company-star field radius as a fraction of the viewport's smaller side (vmin),
@@ -177,7 +178,7 @@ export function LoadingChart({
         className={`loading-chart__phase${swept ? ' loading-chart__phase--done' : ''}`}
         key={phase}
       >
-        {PHASE_TEXT[phase]}
+        {t(PHASE_TEXT_KEY[phase])}
       </p>
     </div>
   );

@@ -13,6 +13,7 @@ import { nodeTypes } from './flow/nodes';
 import { edgeTypes } from './flow/edges';
 import { useLogoColors, useSampledColors } from './flow/colors';
 import { buildAtlas, buildGalaxy } from './flow/build';
+import { t } from '../i18n';
 
 /** The view the graph renders: the atlas chain, or one company's galaxy. */
 export type GraphView =
@@ -247,7 +248,7 @@ function GalaxyChrome({
       {status === 'loading' && (
         <div className="galaxy-overlay">
           <Spinner />
-          <p className="muted">{message ?? 'Finding people you know…'}</p>
+          <p className="muted">{message ?? t('findingPeopleYouKnow')}</p>
         </div>
       )}
       {/* "Show more people" now lives in the canvas as the next orb in the row
@@ -255,15 +256,15 @@ function GalaxyChrome({
       {status === 'empty' && (
         <div className="galaxy-overlay">
           <p className="muted">
-            {message ?? 'No first-degree connections found here.'}
+            {message ?? t('noFirstDegreeConnectionsHere')}
           </p>
         </div>
       )}
       {status === 'error' && (
         <div className="galaxy-overlay">
           <div className="error-card">
-            <p className="error-card__title">Could not load people</p>
-            <p className="muted">{message ?? 'Something went wrong.'}</p>
+            <p className="error-card__title">{t('couldNotLoadPeople')}</p>
+            <p className="muted">{message ?? t('errorGeneric')}</p>
           </div>
         </div>
       )}
@@ -272,7 +273,7 @@ function GalaxyChrome({
       {status === 'logged-out' && (
         <div className="galaxy-overlay">
           <LoggedOutPanel
-            message={message ?? 'Log in to LinkedIn, then try again.'}
+            message={message ?? t('loggedOutLoadMore')}
             onLogin={onLogin}
             overlay
           />

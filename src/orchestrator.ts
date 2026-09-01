@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import { injectedReadProfileHeader } from './profileReader';
 import { injectedScrapeExperience } from './parser';
 import { injectedScrapePeople } from './peopleParser';
@@ -127,7 +128,7 @@ function waitForLoad(
     };
     const timer = setTimeout(() => {
       cleanup();
-      reject(new SeedError('GENERIC', 'Timed out waiting for the page to load', tabId));
+      reject(new SeedError('GENERIC', t('timedOutWaitingPage'), tabId));
     }, timeoutMs);
     const onUpdated = (id: number, info: chrome.tabs.TabChangeInfo) => {
       if (id !== tabId || info.status !== 'complete') return;
@@ -141,7 +142,7 @@ function waitForLoad(
     const onRemoved = (id: number) => {
       if (id !== tabId) return;
       cleanup();
-      reject(new SeedError('GENERIC', 'The worker tab was closed', tabId));
+      reject(new SeedError('GENERIC', t('workerTabClosed'), tabId));
     };
     chrome.tabs.onUpdated.addListener(onUpdated);
     chrome.tabs.onRemoved.addListener(onRemoved);
@@ -234,17 +235,13 @@ export async function runSeed(hooks: SeedRunHooks = {}): Promise<Seed> {
     const tab = await chrome.tabs.create({ url: ME_URL, active: false });
     workerTabId = tab.id;
     if (workerTabId === undefined) {
-      throw new SeedError('GENERIC', 'Could not open a worker tab');
+      throw new SeedError('GENERIC', t('couldNotOpenWorkerTab'));
     }
 
     // 2. Wait for it to resolve; detect logged-out (path A).
     const loaded = await waitForLoad(workerTabId);
     if (isLoggedOutUrl(loaded.url)) {
-      throw new SeedError(
-        'LOGGED_OUT',
-        'Log in to LinkedIn, then click Seed again.',
-        workerTabId,
-      );
+      throw new SeedError('LOGGED_OUT', t('loggedOutSeed'), workerTabId);
     }
     const profileUrl = canonicalProfileUrl(loaded.url || ME_URL);
 
@@ -252,11 +249,7 @@ export async function runSeed(hooks: SeedRunHooks = {}): Promise<Seed> {
     progress({ phase: 'reading-header' });
     const header = await injectFunc(workerTabId, injectedReadProfileHeader, [15000]);
     if (!header || !header.name) {
-      throw new SeedError(
-        'PARSE_NOT_READY',
-        'Could not read your profile header. Try again.',
-        workerTabId,
-      );
+      throw new SeedError('PARSE_NOT_READY', t('couldNotReadProfileHeader'), workerTabId);
     }
 
     // 4. Navigate to the full experience list.
@@ -270,14 +263,10 @@ export async function runSeed(hooks: SeedRunHooks = {}): Promise<Seed> {
     progress({ phase: 'reading-experience' });
     const experiences = await injectFunc(workerTabId, injectedScrapeExperience, [15000]);
     if (!Array.isArray(experiences)) {
-      throw new SeedError(
-        'PARSE_NOT_READY',
-        'Your experience list did not load in time. Try again.',
-        workerTabId,
-      );
+      throw new SeedError('PARSE_NOT_READY', t('experienceListTimeout'), workerTabId);
     }
     if (experiences.length === 0) {
-      throw new SeedError('EMPTY', 'No experience found on your profile.', workerTabId);
+      throw new SeedError('EMPTY', t('noExperienceFound'), workerTabId);
     }
     // Count is real now: bloom the scatter while still on the reading beat.
     progress({ phase: 'reading-experience', companyCount: experiences.length });
@@ -321,7 +310,7 @@ export async function runSeed(hooks: SeedRunHooks = {}): Promise<Seed> {
     }
     throw new SeedError(
       'GENERIC',
-      err instanceof Error ? err.message : 'Something went wrong.',
+      err instanceof Error ? err.message : t('errorGeneric'),
       workerTabId,
     );
   }
@@ -382,7 +371,7 @@ async function scrapePeoplePage(
     });
     workerTabId = tab.id;
     if (workerTabId === undefined) {
-      throw new ExpandError('GENERIC', 'Could not open a worker tab');
+      throw new ExpandError('GENERIC', t('couldNotOpenWorkerTab'));
     }
 
     // Resolve on first complete load (no urlIncludes), then detect logged-out, so
@@ -427,7 +416,7 @@ function asExpandError(err: unknown, workerTabId?: number): ExpandError {
       ? err
       : new ExpandError(
           'GENERIC',
-          err instanceof Error ? err.message : 'Something went wrong.',
+          err instanceof Error ? err.message : t('errorGeneric'),
           workerTabId,
         );
   e.workerTabId ??= workerTabId;
@@ -450,18 +439,18 @@ export async function runExpandCompany(
   const keyword = company.name;
 
   try {
-    progress(`Searching your connections at ${keyword}…`);
+    progress(t('searchingConnectionsAt', keyword));
     const records = await scrapePeoplePage(
       keyword,
       1,
-      'Log in to LinkedIn, then try expanding again.',
-      'The people results did not load in time. Try again.',
+      t('loggedOutExpand'),
+      t('peopleResultsTimeout'),
     );
     if (records.length === 0) {
-      throw new ExpandError('EMPTY', `No first-degree connections found at ${keyword}.`);
+      throw new ExpandError('EMPTY', t('noFirstDegreeConnectionsAt', keyword));
     }
 
-    progress('Caching photos…');
+    progress(t('cachingPhotos'));
     const people = personNodesFromRecords(company.id, records);
     await cachePhotos(people);
 
@@ -515,12 +504,12 @@ export async function runLoadMorePeople(
   const page = (expansion.pagesLoaded ?? 1) + 1;
 
   try {
-    progress(`Looking for more people at ${keyword}…`);
+    progress(t('lookingForMorePeopleAt', keyword));
     const records = await scrapePeoplePage(
       keyword,
       page,
-      'Log in to LinkedIn, then try again.',
-      'The next page did not load in time. Try again.',
+      t('loggedOutLoadMore'),
+      t('nextPageTimeout'),
     );
 
     // Merge against what we hold to find who is actually new. An empty page and
@@ -533,7 +522,7 @@ export async function runLoadMorePeople(
     const exhausted = added.length === 0;
 
     if (added.length > 0) {
-      progress('Caching photos…');
+      progress(t('cachingPhotos'));
       await cachePhotos(added);
     }
 
@@ -548,7 +537,7 @@ export async function runLoadMorePeople(
     // not something to paper over by resurrecting a deleted expansion.
     const next = graph?.expansions?.[company.id];
     if (!next) {
-      throw new ExpandError('GENERIC', 'This company is no longer in your atlas.');
+      throw new ExpandError('GENERIC', t('companyNoLongerInAtlas'));
     }
     return { expansion: next, added, exhausted };
   } catch (err) {
@@ -607,23 +596,19 @@ export async function runTracePerson(
     // worker tab. An empty parse (page didn't hydrate cold) is a recoverable
     // PARSE_NOT_READY error (tab surfaced, orb retryable), so we trade the
     // two-step's reliable-but-slow profile-boot (~4s every trace) for speed.
-    progress(`Reading ${person.name}'s path…`);
+    progress(t('readingPersonPath', person.name));
     const tab = await chrome.tabs.create({
       url: person.profileUrl + 'details/experience/',
       active: false,
     });
     workerTabId = tab.id;
     if (workerTabId === undefined) {
-      throw new TraceError('GENERIC', 'Could not open a worker tab');
+      throw new TraceError('GENERIC', t('couldNotOpenWorkerTab'));
     }
 
     const loaded = await waitForLoad(workerTabId);
     if (isLoggedOutUrl(loaded.url)) {
-      throw new TraceError(
-        'LOGGED_OUT',
-        'Log in to LinkedIn, then try following them again.',
-        workerTabId,
-      );
+      throw new TraceError('LOGGED_OUT', t('loggedOutTrace'), workerTabId);
     }
 
     // Shorter logo grace than the seed (2s vs 6s): a trace only needs the few
@@ -638,11 +623,7 @@ export async function runTracePerson(
     // retryable error (tab surfaced), never as a false-positive dismiss. A real
     // false positive is "experiences parsed, but none match" (handled below).
     if (!Array.isArray(experiences) || experiences.length === 0) {
-      throw new TraceError(
-        'PARSE_NOT_READY',
-        'Their experience list did not load in time. Try again.',
-        workerTabId,
-      );
+      throw new TraceError('PARSE_NOT_READY', t('theirExperienceTimeout'), workerTabId);
     }
 
     const { matched, onward } = deriveOnward(company, experiences);
@@ -658,7 +639,7 @@ export async function runTracePerson(
     }
 
     // Cache each onward logo as a data URL (home page, CORS-allowed, like photos).
-    progress('Charting their trajectory…');
+    progress(t('chartingTrajectory'));
     const withLogos = await Promise.all(
       onward.map(async (s) => ({
         ...s,
@@ -690,7 +671,7 @@ export async function runTracePerson(
     settleWorkerTab(workerTabId, false);
     throw new TraceError(
       'GENERIC',
-      err instanceof Error ? err.message : 'Something went wrong.',
+      err instanceof Error ? err.message : t('errorGeneric'),
       workerTabId,
     );
   }

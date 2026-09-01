@@ -1,15 +1,14 @@
+import { getEffectiveLocale, t } from './i18n';
 import type { DateParts, ExperienceEntry } from './types';
 
-const MONTH_NAMES = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
-
 export function formatDate(d: DateParts | null): string {
-  if (!d) return 'Present';
+  if (!d) return t('present');
   if (!d.year) return '';
   if (d.month && d.month >= 1 && d.month <= 12) {
-    return `${MONTH_NAMES[d.month - 1]} ${d.year}`;
+    const month = new Intl.DateTimeFormat(getEffectiveLocale(), { month: 'short' }).format(
+      new Date(d.year, d.month - 1),
+    );
+    return `${month} ${d.year}`;
   }
   return String(d.year);
 }

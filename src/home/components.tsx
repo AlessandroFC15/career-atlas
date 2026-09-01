@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { initials } from '../format';
+import { t } from '../i18n';
 
 /**
  * Decode an image's `src` up front (the moment it mounts), so when the element
@@ -66,7 +67,7 @@ export function CompanyLogo({
 }
 
 export function Spinner() {
-  return <div className="spinner" role="status" aria-label="Loading" />;
+  return <div className="spinner" role="status" aria-label={t('loadingAriaLabel')} />;
 }
 
 /** Logged-out is a precondition, not a failure (issue #1): a dim, unlit orb
@@ -88,11 +89,11 @@ export function LoggedOutPanel({
   return (
     <div className={overlay ? 'logged-out logged-out--overlay' : 'logged-out'}>
       <span className="logged-out__orb" aria-hidden="true" />
-      <h1 className="logged-out__title">Not logged in</h1>
+      <h1 className="logged-out__title">{t('notLoggedInTitle')}</h1>
       <p className="muted">{message}</p>
       <div className="logged-out__actions">
         <button className="btn btn--primary" onClick={onLogin}>
-          Log in to LinkedIn
+          {t('logInToLinkedIn')}
         </button>
         {secondary && (
           <button className="btn btn--ghost" onClick={secondary.onClick}>

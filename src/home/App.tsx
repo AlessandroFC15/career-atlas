@@ -19,6 +19,7 @@ import type {
 import { Avatar, LoggedOutPanel } from './components';
 import { CareerGraph, type GraphView } from './CareerGraph';
 import { BreathingOrb, LoadingChart, useSeedReveal } from './LoadingChart';
+import { t } from '../i18n';
 
 type View =
   | { kind: 'loading' }
@@ -180,7 +181,7 @@ export function App() {
       setView({
         kind: 'error',
         code: e?.code ?? 'GENERIC',
-        message: e?.message ?? 'Something went wrong.',
+        message: e?.message ?? t('errorGeneric'),
       });
     }
   }
@@ -286,7 +287,7 @@ export function App() {
         pendingRetry.current = () => handleTracePerson(personId);
       }
       setGalaxyNote({
-        message: e?.message ?? 'Could not follow them. Try again.',
+        message: e?.message ?? t('couldNotFollow'),
         loggedOut: e?.code === 'LOGGED_OUT',
       });
     } finally {
@@ -324,7 +325,7 @@ export function App() {
         pendingRetry.current = () => handleLoadMore(companyId);
       }
       setGalaxyNote({
-        message: e?.message ?? 'Could not load more people. Try again.',
+        message: e?.message ?? t('couldNotLoadMore'),
         loggedOut: e?.code === 'LOGGED_OUT',
       });
     } finally {
@@ -406,7 +407,7 @@ export function App() {
           <LoggedOutPanel
             message={view.message}
             onLogin={handleLogin}
-            secondary={{ label: 'Seed again', onClick: handleSeed }}
+            secondary={{ label: t('seedAgain'), onClick: handleSeed }}
           />
         )}
         {view.kind === 'error' && view.code !== 'LOGGED_OUT' && (
@@ -448,13 +449,10 @@ function EmptyState({ onSeed }: { onSeed: () => void }) {
   return (
     <div className="welcome">
       <span className="welcome__orb" aria-hidden="true" />
-      <h1 className="welcome__title">Your career, as a star chart</h1>
-      <p className="welcome__lede">
-        Career Atlas charts your professional history from your own LinkedIn
-        profile: every company a star, every move a path between them.
-      </p>
+      <h1 className="welcome__title">{t('welcomeTitle')}</h1>
+      <p className="welcome__lede">{t('welcomeLede')}</p>
       <button className="btn btn--primary welcome__cta" onClick={onSeed}>
-        Seed my graph
+        {t('seedCta')}
       </button>
     </div>
   );
@@ -464,10 +462,10 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
   return (
     <div className="center">
       <div className="error-card">
-        <p className="error-card__title">Seeding failed</p>
+        <p className="error-card__title">{t('seedingFailedTitle')}</p>
         <p className="muted">{message}</p>
         <button className="btn btn--primary" onClick={onRetry}>
-          Retry
+          {t('retry')}
         </button>
       </div>
     </div>
@@ -514,11 +512,11 @@ function SeededState({
         <div className="career-header__meta">
           <h1 className="career-header__name">{seed.name}</h1>
           <p className="muted">
-            {count} {count === 1 ? 'company' : 'companies'}
+            {t(count === 1 ? 'companyCountOne' : 'companyCountOther', count)}
           </p>
         </div>
         <button className="btn btn--ghost" onClick={onReseed}>
-          Re-seed
+          {t('reseed')}
         </button>
       </section>
       {/* Key by the seed timestamp so a re-seed remounts the graph and the
@@ -543,7 +541,7 @@ function SeededState({
           {galaxyNote.message}
           {galaxyNote.loggedOut && (
             <button className="galaxy-note__link" onClick={onLogin}>
-              Log in to LinkedIn
+              {t('logInToLinkedIn')}
             </button>
           )}
         </div>

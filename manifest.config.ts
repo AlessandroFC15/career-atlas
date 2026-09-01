@@ -10,6 +10,7 @@ const lane = dir.startsWith('career-atlas-') ? dir.slice('career-atlas-'.length)
 // M0 manifest. Permissions and host_permissions per m0-plan §4.
 export default defineManifest({
   manifest_version: 3,
+  default_locale: 'en',
   name: lane ? `Career Atlas [${lane}]` : 'Career Atlas',
   version: '0.1.0',
   description: 'Map who you overlapped with and where they went next, rooted in your own career.',

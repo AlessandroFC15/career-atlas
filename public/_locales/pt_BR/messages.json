@@ -1,0 +1,201 @@
+{
+  "appName": {
+    "message": "Career Atlas"
+  },
+  "appDescription": {
+    "message": "Veja com quem você cruzou caminho e para onde foram depois, a partir da sua própria carreira."
+  },
+  "errorGeneric": {
+    "message": "Algo deu errado."
+  },
+  "seedAgain": {
+    "message": "Revelar de novo"
+  },
+  "welcomeTitle": {
+    "message": "Sua carreira, como uma constelação"
+  },
+  "welcomeLede": {
+    "message": "O Career Atlas traça sua trajetória profissional a partir do seu próprio perfil do LinkedIn: cada empresa uma estrela, cada mudança um caminho entre elas."
+  },
+  "seedCta": {
+    "message": "Revelar meu mapa"
+  },
+  "seedingFailedTitle": {
+    "message": "Não foi possível revelar seu mapa"
+  },
+  "retry": {
+    "message": "Tentar de novo"
+  },
+  "companyCountOne": {
+    "message": "$1 empresa",
+    "placeholders": { "1": { "content": "$1" } }
+  },
+  "companyCountOther": {
+    "message": "$1 empresas",
+    "placeholders": { "1": { "content": "$1" } }
+  },
+  "reseed": {
+    "message": "Revelar de novo"
+  },
+  "logInToLinkedIn": {
+    "message": "Entrar no LinkedIn"
+  },
+  "couldNotFollow": {
+    "message": "Não foi possível seguir essa pessoa. Tente de novo."
+  },
+  "couldNotLoadMore": {
+    "message": "Não foi possível carregar mais pessoas. Tente de novo."
+  },
+  "loadingAriaLabel": {
+    "message": "Carregando"
+  },
+  "notLoggedInTitle": {
+    "message": "Você não está conectado"
+  },
+  "traceMessageOpeningProfile": {
+    "message": "Abrindo o perfil…"
+  },
+  "traceMessageReadingHistory": {
+    "message": "Lendo a trajetória…"
+  },
+  "traceMessageTracing": {
+    "message": "Rastreando para onde foi…"
+  },
+  "traceMessageCharting": {
+    "message": "Traçando o caminho…"
+  },
+  "didntWorkAt": {
+    "message": "não trabalhou em $1",
+    "placeholders": { "1": { "content": "$1" } }
+  },
+  "stillAt": {
+    "message": "ainda em $1",
+    "placeholders": { "1": { "content": "$1" } }
+  },
+  "here": {
+    "message": "aqui"
+  },
+  "openOnLinkedIn": {
+    "message": "Abrir $1 no LinkedIn",
+    "placeholders": { "1": { "content": "$1" } }
+  },
+  "peopleYouProbablyKnow": {
+    "message": "Pessoas que você talvez conheça"
+  },
+  "tapFaceToFollow": {
+    "message": "Toque em um rosto para seguir o caminho depois de $1.",
+    "placeholders": { "1": { "content": "$1" } }
+  },
+  "nowLabel": {
+    "message": "agora"
+  },
+  "loadMoreTitleExhausted": {
+    "message": "É todo mundo por aqui"
+  },
+  "loadMoreTitleLoading": {
+    "message": "Procurando mais pessoas…"
+  },
+  "loadMoreTitleDefault": {
+    "message": "Mostrar mais pessoas"
+  },
+  "loadMoreLabelLoading": {
+    "message": "carregando…"
+  },
+  "loadMoreLabelExhausted": {
+    "message": "todos aqui"
+  },
+  "loadMoreLabelDefault": {
+    "message": "mais pessoas"
+  },
+  "present": {
+    "message": "Presente"
+  },
+  "loggedOutSeed": {
+    "message": "Entre no LinkedIn e clique em Revelar de novo."
+  },
+  "couldNotReadProfileHeader": {
+    "message": "Não foi possível ler o topo do seu perfil. Tente de novo."
+  },
+  "experienceListTimeout": {
+    "message": "Sua lista de experiências não carregou a tempo. Tente de novo."
+  },
+  "noExperienceFound": {
+    "message": "Nenhuma experiência encontrada no seu perfil."
+  },
+  "couldNotOpenWorkerTab": {
+    "message": "Não foi possível abrir uma aba de trabalho"
+  },
+  "noFirstDegreeConnectionsAt": {
+    "message": "Nenhuma conexão de primeiro grau encontrada em $1.",
+    "placeholders": { "1": { "content": "$1" } }
+  },
+  "findingPeopleYouKnow": {
+    "message": "Procurando pessoas que você conhece…"
+  },
+  "noFirstDegreeConnectionsHere": {
+    "message": "Nenhuma conexão de primeiro grau encontrada aqui."
+  },
+  "couldNotLoadPeople": {
+    "message": "Não foi possível carregar as pessoas"
+  },
+  "loggedOutExpand": {
+    "message": "Entre no LinkedIn e tente expandir de novo."
+  },
+  "peopleResultsTimeout": {
+    "message": "Os resultados de pessoas não carregaram a tempo. Tente de novo."
+  },
+  "cachingPhotos": {
+    "message": "Guardando fotos…"
+  },
+  "loggedOutLoadMore": {
+    "message": "Entre no LinkedIn e tente de novo."
+  },
+  "nextPageTimeout": {
+    "message": "A próxima página não carregou a tempo. Tente de novo."
+  },
+  "companyNoLongerInAtlas": {
+    "message": "Essa empresa não está mais no seu atlas."
+  },
+  "loggedOutTrace": {
+    "message": "Entre no LinkedIn e tente seguir essa pessoa de novo."
+  },
+  "theirExperienceTimeout": {
+    "message": "A lista de experiências não carregou a tempo. Tente de novo."
+  },
+  "searchingConnectionsAt": {
+    "message": "Buscando suas conexões em $1…",
+    "placeholders": { "1": { "content": "$1" } }
+  },
+  "lookingForMorePeopleAt": {
+    "message": "Procurando mais pessoas em $1…",
+    "placeholders": { "1": { "content": "$1" } }
+  },
+  "readingPersonPath": {
+    "message": "Lendo o caminho de $1…",
+    "placeholders": { "1": { "content": "$1" } }
+  },
+  "chartingTrajectory": {
+    "message": "Traçando a trajetória…"
+  },
+  "timedOutWaitingPage": {
+    "message": "A página demorou demais para carregar"
+  },
+  "workerTabClosed": {
+    "message": "A aba de trabalho foi fechada"
+  },
+  "phaseOpeningProfile": {
+    "message": "Abrindo seu perfil do LinkedIn…"
+  },
+  "phaseReadingHeader": {
+    "message": "Lendo seu nome e foto…"
+  },
+  "phaseOpeningExperience": {
+    "message": "Abrindo sua lista completa de experiências…"
+  },
+  "phaseReadingExperience": {
+    "message": "Lendo sua experiência…"
+  },
+  "phaseCaching": {
+    "message": "Traçando suas empresas…"
+  }
+}
