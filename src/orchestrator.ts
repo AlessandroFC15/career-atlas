@@ -28,7 +28,8 @@ export type SeedErrorCode =
   | 'LOGGED_OUT' // A
   | 'PARSE_NOT_READY' // B
   | 'EMPTY' // C
-  | 'GENERIC'; // D
+  | 'GENERIC' // D
+  | 'UNSUPPORTED_LOCALE'; // E
 
 export class SeedError extends Error {
   constructor(
@@ -43,6 +44,19 @@ export class SeedError extends Error {
 
 const ME_URL = 'https://www.linkedin.com/in/me/';
 const NAV_TIMEOUT = 30000;
+
+/** Self-contained (no outer-scope refs, injected via chrome.scripting): reads
+ *  the page's declared language. The parsers understand English and Portuguese
+ *  markup (see issue #13); LinkedIn's UI language is an account setting with no
+ *  per-request URL override for a signed-in session (unlike a public/logged-out
+ *  profile view, where `?locale=` does work), so this is the only lever we have
+ *  to catch any other language before it silently parses nothing. An
+ *  empty/missing `lang` passes rather than blocking, since not every LinkedIn
+ *  page sets it reliably. Exported for tests. */
+export function injectedCheckSupportedLocale(): boolean {
+  const lang = (document.documentElement.lang || '').toLowerCase();
+  return lang === '' || lang.startsWith('en') || lang.startsWith('pt');
+}
 
 /** LinkedIn's login page, for the logged-out state's "Log in" link. Never the
  *  worker tab's URL: a logged-out /in/me redirects to signup, not login, so
@@ -243,6 +257,9 @@ export async function runSeed(hooks: SeedRunHooks = {}): Promise<Seed> {
     if (isLoggedOutUrl(loaded.url)) {
       throw new SeedError('LOGGED_OUT', t('loggedOutSeed'), workerTabId);
     }
+    if (!(await injectFunc(workerTabId, injectedCheckSupportedLocale, []))) {
+      throw new SeedError('UNSUPPORTED_LOCALE', t('unsupportedLocale'), workerTabId);
+    }
     const profileUrl = canonicalProfileUrl(loaded.url || ME_URL);
 
     // 3. Read name + avatar URL from the top card.
@@ -379,6 +396,9 @@ async function scrapePeoplePage(
     const loaded = await waitForLoad(workerTabId);
     if (isLoggedOutUrl(loaded.url)) {
       throw new ExpandError('LOGGED_OUT', loggedOutMessage, workerTabId);
+    }
+    if (!(await injectFunc(workerTabId, injectedCheckSupportedLocale, []))) {
+      throw new ExpandError('UNSUPPORTED_LOCALE', t('unsupportedLocale'), workerTabId);
     }
 
     const records = await injectFunc(workerTabId, injectedScrapePeople, [15000]);
@@ -549,7 +569,11 @@ export async function runLoadMorePeople(
 
 /** No EMPTY here: "no shared stint" is the dismiss OUTCOME and "nothing after"
  *  is a valid terminal lane, neither is an error. */
-export type TraceErrorCode = 'LOGGED_OUT' | 'PARSE_NOT_READY' | 'GENERIC';
+export type TraceErrorCode =
+  | 'LOGGED_OUT'
+  | 'PARSE_NOT_READY'
+  | 'GENERIC'
+  | 'UNSUPPORTED_LOCALE';
 
 export class TraceError extends Error {
   constructor(
@@ -609,6 +633,9 @@ export async function runTracePerson(
     const loaded = await waitForLoad(workerTabId);
     if (isLoggedOutUrl(loaded.url)) {
       throw new TraceError('LOGGED_OUT', t('loggedOutTrace'), workerTabId);
+    }
+    if (!(await injectFunc(workerTabId, injectedCheckSupportedLocale, []))) {
+      throw new TraceError('UNSUPPORTED_LOCALE', t('unsupportedLocale'), workerTabId);
     }
 
     // Shorter logo grace than the seed (2s vs 6s): a trace only needs the few

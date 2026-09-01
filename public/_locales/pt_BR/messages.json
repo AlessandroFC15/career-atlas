@@ -113,6 +113,9 @@
   "loggedOutSeed": {
     "message": "Entre no LinkedIn e clique em Revelar de novo."
   },
+  "unsupportedLocale": {
+    "message": "O Career Atlas só entende o LinkedIn em inglês ou português. Mude o idioma de exibição para um desses (Configurações e privacidade → Preferências da conta → Preferências do site → Idioma) e tente de novo."
+  },
   "couldNotReadProfileHeader": {
     "message": "Não foi possível ler o topo do seu perfil. Tente de novo."
   },

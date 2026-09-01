@@ -38,15 +38,27 @@ export async function injectedScrapeExperience(
   timeoutMs = 15000,
   logoGraceMs = 6000,
 ): Promise<ExperienceEntry[]> {
+  // English and Brazilian-Portuguese 3-letter month abbreviations, merged: none
+  // collide (the two sets share "jan"/"mar"/"jun"/"jul"/"nov" verbatim, and
+  // differ everywhere else), so a single lookup covers both locales.
   const MONTHS: Record<string, number> = {
     jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
     jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
+    fev: 2, abr: 4, mai: 5, ago: 8, set: 9, out: 10, dez: 12,
   };
 
   const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-  const DATE_RE =
-    /([A-Za-z]{3,}\.?\s+\d{4}|\d{4})\s*[-–—]\s*(present|[A-Za-z]{3,}\.?\s+\d{4}|\d{4})/i;
+  // "Present" (EN) vs "o momento" / "atualmente" (PT-BR, live-verified: "ago de
+  // 2025 - o momento") for an ongoing role.
+  const ONGOING_RE = /^(present|o momento|atualmente)$/i;
+  // A month token optionally joined to its year by PT-BR's "de" ("jan de 2020"),
+  // or a bare year.
+  const MONTH_OR_YEAR = '(?:[A-Za-z]{3,}\\.?\\s+(?:de\\s+)?\\d{4}|\\d{4})';
+  const DATE_RE = new RegExp(
+    `${MONTH_OR_YEAR}\\s*[-–—]\\s*(?:${ONGOING_RE.source.slice(1, -1)}|${MONTH_OR_YEAR})`,
+    'i',
+  );
 
   function clean(el: Element | null | undefined): string {
     return (el?.textContent || '').replace(/\s+/g, ' ').trim();
@@ -77,7 +89,8 @@ export async function injectedScrapeExperience(
   }
 
   function parseDate(token: string): DateParts | null {
-    const t = token.trim();
+    // Drop PT-BR's "de" joiner ("jan de 2020" -> "jan 2020") before matching.
+    const t = token.trim().replace(/\bde\b/i, ' ').replace(/\s+/g, ' ').trim();
     if (!t) return null;
     const m = t.match(/^([A-Za-z]{3,})?\.?\s*(\d{4})$/);
     if (!m) {
@@ -101,7 +114,7 @@ export async function injectedScrapeExperience(
     const halves = rangePart.split(/[-–—]/).map((s) => s.trim());
     const start = parseDate(halves[0] || '');
     const endToken = halves[1] || '';
-    const end = /present/i.test(endToken) ? null : parseDate(endToken);
+    const end = ONGOING_RE.test(endToken) ? null : parseDate(endToken);
     return { start, end };
   }
 

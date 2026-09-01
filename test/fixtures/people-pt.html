@@ -1,0 +1,120 @@
+<!--
+  Synthetic Brazilian-Portuguese first-degree people-search results (issue
+  #13), structured like people.html's English fixture but carrying real PT-BR
+  strings live-verified via Claude-in-Chrome against an actual PT-BR LinkedIn
+  session: the degree badge is the DEGREE SIGN "°" (U+00B0), not "º"
+  (" • 1°"); the action button reads "Mensagem"; the employment-summary line
+  reads "Atual:" / "Anterior:"; and the mutual-connections line reads
+  "N conexões em comum". All names/vanities/photos are invented (deceased
+  Brazilian scientists, none of them real LinkedIn users) — same convention as
+  people.html.
+-->
+<main>
+  <div class="search-results-container">
+    <ul class="reusable-search__entity-result-list _3f1d">
+      <!-- Card 1: full record, with the a11y name echo + Atual/mutual/Mensagem noise. -->
+      <li class="reusable-search__result-container _7d9e4974">
+        <div class="_05efea2b name-block">
+          <span class="_689c2732">Bertha Lutz</span>
+          <span class="_689c2732">Bertha Lutz</span>
+        </div>
+        <figure class="_88ea701d">
+          <img class="presence-entity__image _975b5252" src="https://media.licdn.com/dms/image/bertha-lutz.jpg" alt="" />
+        </figure>
+        <div class="entity-result__content _8f55ad10">
+          <p class="entity-result__title _2eb95346">
+            <a class="app-aware-link bec82545" href="https://www.linkedin.com/in/bertha-lutz/">Bertha Lutz<span class="visually-hidden"></span></a>
+            <span class="entity-result__badge _354585b3"><span class="da5267a2">&#8226; 1°</span></span>
+          </p>
+          <div class="entity-result__primary-subtitle f4047763">
+            <p class="_2eb95346"><span>Líder de Engenharia na Beacon</span></p>
+          </div>
+          <div class="entity-result__secondary-subtitle df4fa34d">
+            <p class="_2eb95346"><span>Londres, Inglaterra, Reino Unido</span></p>
+          </div>
+          <div class="entity-result__summary _8d554a10">
+            <p class="_2eb95346"><span>Atual: Líder de Engenharia na Beacon</span></p>
+          </div>
+          <div class="reusable-search-simple-insight">
+            <span>12 conexões em comum</span>
+          </div>
+          <div class="entity-result__actions">
+            <button class="_67eb74cd"><span>Mensagem</span></button>
+          </div>
+        </div>
+      </li>
+
+      <!-- Card 2: locale-suffixed profile URL (/in/oswaldo-cruz/pt/). -->
+      <li class="reusable-search__result-container _7d9e4974">
+        <figure class="_88ea701d">
+          <img class="presence-entity__image" src="https://media.licdn.com/dms/image/oswaldo-cruz.jpg" alt="" />
+        </figure>
+        <div class="entity-result__content">
+          <p class="entity-result__title">
+            <a class="app-aware-link" href="https://www.linkedin.com/in/oswaldo-cruz/pt/?miniProfileUrn=abc">Oswaldo Cruz<span class="visually-hidden"></span></a>
+            <span class="entity-result__badge"><span>&#8226; 1°</span></span>
+          </p>
+          <div class="entity-result__primary-subtitle">
+            <p><span>Pioneiro em Saúde Pública na Univac</span></p>
+          </div>
+          <div class="entity-result__secondary-subtitle">
+            <p><span>Arlington, Virgínia, Estados Unidos</span></p>
+          </div>
+          <div class="entity-result__actions">
+            <button><span>Conectar-se</span></button>
+          </div>
+        </div>
+      </li>
+
+      <!-- Card 3: only a ghost photo (no real src) -> photoUrl should be undefined. -->
+      <li class="reusable-search__result-container _7d9e4974">
+        <figure class="_88ea701d">
+          <img class="presence-entity__image" src="https://static.licdn.com/aero-v1/sc/h/ghost-person.png" alt="" />
+        </figure>
+        <div class="entity-result__content">
+          <p class="entity-result__title">
+            <a class="app-aware-link" href="https://www.linkedin.com/in/santos-dumont/">Santos Dumont<span class="visually-hidden"></span></a>
+            <span class="entity-result__badge"><span>&#8226; 1°</span></span>
+          </p>
+          <div class="entity-result__primary-subtitle">
+            <p><span>Criptoanalista na Bletchley</span></p>
+          </div>
+          <div class="entity-result__secondary-subtitle">
+            <p><span>Manchester, Inglaterra, Reino Unido</span></p>
+          </div>
+        </div>
+      </li>
+
+      <!-- Card 4: no location line -> location should be undefined. -->
+      <li class="reusable-search__result-container _7d9e4974">
+        <figure class="_88ea701d">
+          <img class="presence-entity__image" src="https://media.licdn.com/dms/image/cesar-lattes.jpg" alt="" />
+        </figure>
+        <div class="entity-result__content">
+          <p class="entity-result__title">
+            <a class="app-aware-link" href="https://www.linkedin.com/in/cesar-lattes/">Cesar Lattes<span class="visually-hidden"></span></a>
+            <span class="entity-result__badge"><span>&#8226; 1°</span></span>
+          </p>
+          <div class="entity-result__primary-subtitle">
+            <p><span>Diretora de Engenharia de Software na Apollo</span></p>
+          </div>
+          <div class="entity-result__actions">
+            <button><span>Mensagem</span></button>
+          </div>
+        </div>
+      </li>
+    </ul>
+
+    <!-- Mutual-connections facepile: /in/ links, NO degree badge (must be excluded). -->
+    <div class="search-results__facepile">
+      <a href="https://www.linkedin.com/in/george-boole/"><img src="https://media.licdn.com/dms/image/george.jpg" alt="" /></a>
+      <span>George Boole e mais 169 outros</span>
+    </div>
+  </div>
+
+  <!-- "Pessoas que também visualizaram" sidebar: /in/ links, NO badge (must be excluded). -->
+  <aside class="search-sidebar">
+    <a href="https://www.linkedin.com/in/claude-shannon/">Claude Shannon</a>
+    <a href="https://www.linkedin.com/in/john-von-neumann/">John von Neumann</a>
+  </aside>
+</main>

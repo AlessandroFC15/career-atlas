@@ -18,12 +18,22 @@ export async function injectedReadProfileHeader(
 ): Promise<ProfileHeader | null> {
   const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+  // English labels, plus their Brazilian-Portuguese translations (issue #13).
+  // "experiência", "atividades", "idioma do perfil", "perfil público e url"
+  // and "formação acadêmica" are live-verified against a real PT-BR profile;
+  // the rest are best-effort translations of the English set.
   const SECTION_LABELS = new Set([
     'about', 'experience', 'education', 'skills', 'activity', 'analytics',
     'suggested for you', 'profile language', 'public profile & url', 'featured',
     'licenses & certifications', 'interests', 'recommendations', 'languages',
     'people you may know', 'more profiles for you', 'highlights', 'projects',
     'honors & awards', 'volunteering', 'courses', 'test scores',
+    'sobre', 'experiência', 'formação acadêmica', 'competências', 'atividades',
+    'análises', 'sugestões para você', 'idioma do perfil',
+    'perfil público e url', 'destaques', 'licenças e certificações',
+    'interesses', 'recomendações', 'idiomas', 'pessoas que você talvez conheça',
+    'mais perfis para você', 'projetos', 'prêmios e reconhecimentos',
+    'voluntariado', 'cursos', 'notas de teste',
   ]);
 
   function readName(): string {

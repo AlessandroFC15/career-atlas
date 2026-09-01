@@ -113,6 +113,9 @@
   "loggedOutSeed": {
     "message": "Log in to LinkedIn, then click Seed again."
   },
+  "unsupportedLocale": {
+    "message": "Career Atlas only understands LinkedIn in English or Portuguese. Switch your display language to one of those (Settings & Privacy → Account preferences → Site preferences → Language) and try again."
+  },
   "couldNotReadProfileHeader": {
     "message": "Could not read your profile header. Try again."
   },

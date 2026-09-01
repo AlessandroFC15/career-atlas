@@ -30,14 +30,25 @@ export async function injectedScrapePeople(
 ): Promise<PersonRecord[]> {
   const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-  // A degree badge reads like "• 1st" / "1st" / "2nd". Leading non-word chars
-  // (the bullet glyph, whatever variant, plus spaces) are tolerated so the match
+  // A degree badge reads like "• 1st" / "1st" / "2nd" (EN) or "• 1°" / "2°" /
+  // "3°" (PT-BR, live-verified against a real PT-BR search page — LinkedIn
+  // renders the DEGREE SIGN U+00B0 "°", not the ordinal indicator "º"; both
+  // are accepted here in case of variation). Leading non-word chars (the
+  // bullet glyph, whatever variant, plus spaces) are tolerated so the match
   // does not hinge on an exact bullet character.
-  const DEGREE_RE = /^\W*(1st|2nd|3rd)\b/i;
-  // Action controls and meta lines that are not the headline/location.
-  const ACTION_RE = /^(message|connect|follow|following|pending|view profile)$/i;
-  const SUMMARY_SKIP_RE = /^(current|past)\s*:/i;
-  const MUTUAL_RE = /mutual connection/i;
+  const DEGREE_RE = /^\W*(?:(?:1st|2nd|3rd)\b|1[°º]|2[°º]|3[°º])/i;
+  // Action controls and meta lines that are not the headline/location. Only
+  // "Mensagem" is live-verified (the first-degree search this parser targets
+  // only ever renders a Message action); the rest are PT-BR translations of
+  // the English set, included defensively.
+  const ACTION_RE =
+    /^(message|connect|follow|following|pending|view profile|mensagem|conectar-se|seguir|seguindo|pendente|ver perfil)$/i;
+  // "Atual:"/"Anterior:" (PT-BR for "Current:"/"Past:") live-verified.
+  const SUMMARY_SKIP_RE = /^(current|past|atual|anterior)\s*:/i;
+  // "N conexões em comum" (PT-BR for "N mutual connections") live-verified;
+  // matched loosely on the "conex...em comum" shape rather than an exact
+  // singular/plural spelling.
+  const MUTUAL_RE = /mutual connection|conex\w* em comum/i;
 
   function clean(el: Element | null | undefined): string {
     return (el?.textContent || '').replace(/\s+/g, ' ').trim();
