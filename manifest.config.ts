@@ -14,9 +14,21 @@ export default defineManifest({
   name: lane ? `Career Atlas [${lane}]` : 'Career Atlas',
   version: '0.1.0',
   description: 'Map who you overlapped with and where they went next, rooted in your own career.',
+  icons: {
+    16: 'public/icons/icon16.png',
+    32: 'public/icons/icon32.png',
+    48: 'public/icons/icon48.png',
+    128: 'public/icons/icon128.png',
+  },
   // No default_popup: the toolbar click opens/focuses the home tab (handled in the background worker).
   action: {
     default_title: 'Open Career Atlas',
+    default_icon: {
+      16: 'public/icons/icon16.png',
+      32: 'public/icons/icon32.png',
+      48: 'public/icons/icon48.png',
+      128: 'public/icons/icon128.png',
+    },
   },
   background: {
     service_worker: 'src/background.ts',
