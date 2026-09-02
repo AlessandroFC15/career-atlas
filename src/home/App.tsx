@@ -284,6 +284,8 @@ export function App() {
                 ...p,
                 status: result.status,
                 onward: result.status === 'traced' ? result.onward : undefined,
+                currentRoles:
+                  result.status === 'traced' ? result.currentRoles : undefined,
                 tracedAt:
                   result.status === 'traced' ? result.tracedAt : p.tracedAt,
               }

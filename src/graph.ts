@@ -3,6 +3,7 @@
 
 import type {
   CareerGraph,
+  CurrentRole,
   DateParts,
   ExperienceEntry,
   GraphNode,
@@ -270,7 +271,7 @@ function isSharedCompany(company: GraphNode, entry: ExperienceEntry): boolean {
 export function deriveOnward(
   company: GraphNode,
   theirExperiences: ExperienceEntry[],
-): { matched: boolean; onward: OnwardStint[] } {
+): { matched: boolean; onward: OnwardStint[]; currentRoles?: CurrentRole[] } {
   const matches = theirExperiences.filter((e) => isSharedCompany(company, e));
   if (matches.length === 0) return { matched: false, onward: [] };
 
@@ -279,7 +280,17 @@ export function deriveOnward(
   );
 
   const leftAt = anchor.end;
-  if (leftAt === null) return { matched: true, onward: [] }; // still there (terminal)
+  if (leftAt === null) {
+    // Still there (terminal): surface their own role(s) at the shared
+    // company, the same way an onward leaf's roles are surfaced. Sorted by
+    // start date ourselves (ascending, oldest first) rather than trusting
+    // parser order: the last one is then always the current title, whichever
+    // order LinkedIn happened to list the nested roles in.
+    const currentRoles = [...anchor.roles]
+      .sort((a, b) => startValue(a.start) - startValue(b.start))
+      .map((r) => ({ title: r.title, start: r.start }));
+    return { matched: true, onward: [], currentRoles };
+  }
 
   const leftValue = startValue(leftAt);
   const onward = theirExperiences

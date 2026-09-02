@@ -22,3 +22,12 @@ export const PERSON_NODE_WIDTH = PERSON_ORB;
 // (absolutely positioned), like the person name chip.
 export const ONWARD_ORB = 56;
 export const ONWARD_NODE_WIDTH = ONWARD_ORB;
+
+// A promotion marker (issue #14): a rank pip threaded on a terminal lane's
+// beam, one per earlier title held at the current company. Grows a little
+// with each step (oldest title smallest) so moving up the beam reads as
+// levelling up; ROLE_BEAD_MAX keeps the last one still clearly smaller than
+// the destination orb it leads into.
+export const ROLE_BEAD_MIN = 20;
+export const ROLE_BEAD_STEP = 6;
+export const ROLE_BEAD_MAX = ONWARD_ORB - 12;

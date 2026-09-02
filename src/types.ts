@@ -14,6 +14,14 @@ export interface Role {
   rawDateText: string; // original string, for display/debugging
 }
 
+/** One title a colleague held at the company they're still at (m3, issue #14),
+ *  sorted ascending by `start` regardless of parser/DOM order: the LAST entry
+ *  is always their current title, the rest is their promotion history there. */
+export interface CurrentRole {
+  title: string;
+  start: DateParts;
+}
+
 /** One LinkedIn experience card = one entry. */
 export interface ExperienceEntry {
   companyName: string;
@@ -122,6 +130,10 @@ export interface PersonNode {
   //   recoverable by re-clicking. (M3 §4)
   status: 'raw' | 'traced' | 'dismissed';
   onward?: OnwardStint[]; // set when status === 'traced' (empty = terminal)
+  // The colleague's own role(s) at the shared company, set only when `onward`
+  // is empty (still there): promotions in place read the same way an onward
+  // leaf's roles do.
+  currentRoles?: CurrentRole[];
   tracedAt?: number; // epoch ms when traced: lanes stack in this (click) order
   order: number; // column position within the galaxy
 }

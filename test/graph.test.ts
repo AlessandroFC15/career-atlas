@@ -447,6 +447,49 @@ describe('deriveOnward', () => {
     expect(onward).toEqual([]);
   });
 
+  it('surfaces the anchor stint\'s own roles, oldest first, when terminal (still there)', () => {
+    const focus = company('Stay', { year: 2019 }, { companyUrn: 'urn:stay' });
+    const { currentRoles } = deriveOnward(focus, [
+      entry('Stay', { year: 2019 }, null, {
+        companyUrn: 'urn:stay',
+        roles: [
+          { title: 'Senior Engineer', start: { year: 2022 }, end: null, rawDateText: '' },
+          { title: 'Engineer', start: { year: 2019 }, end: { year: 2022 }, rawDateText: '' },
+        ],
+      }),
+    ]);
+    expect(currentRoles).toEqual([
+      { title: 'Engineer', start: { year: 2019 } },
+      { title: 'Senior Engineer', start: { year: 2022 } },
+    ]);
+  });
+
+  it('sorts currentRoles by start date, regardless of parser/DOM order', () => {
+    // Roles listed oldest-first in the source data (opposite of the usual
+    // LinkedIn newest-first card order): the sort must still land the LATEST
+    // title last, not just pass through whatever order it was given.
+    const focus = company('Stay', { year: 2019 }, { companyUrn: 'urn:stay' });
+    const { currentRoles } = deriveOnward(focus, [
+      entry('Stay', { year: 2019 }, null, {
+        companyUrn: 'urn:stay',
+        roles: [
+          { title: 'Engineer', start: { year: 2019 }, end: { year: 2022 }, rawDateText: '' },
+          { title: 'Senior Engineer', start: { year: 2022 }, end: null, rawDateText: '' },
+        ],
+      }),
+    ]);
+    expect(currentRoles?.map((r) => r.title)).toEqual(['Engineer', 'Senior Engineer']);
+  });
+
+  it('omits currentRoles when the colleague has already left (not terminal)', () => {
+    const focus = company('Base', { year: 2010 }, { companyUrn: 'urn:base' });
+    const { currentRoles } = deriveOnward(focus, [
+      entry('Base', { year: 2010 }, { year: 2012 }, { companyUrn: 'urn:base' }),
+      entry('Later', { year: 2018 }, null),
+    ]);
+    expect(currentRoles).toBeUndefined();
+  });
+
   it('returns matched:false when the profile never lists the company', () => {
     const focus = company('Escale', { year: 2017 }, { companyUrn: 'urn:escale' });
     const { matched, onward } = deriveOnward(focus, [

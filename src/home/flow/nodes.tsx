@@ -35,7 +35,6 @@ export type PersonNodeData = {
   status?: 'raw' | 'traced' | 'dismissed';
   tracing?: boolean; // a trace is in flight: spinner over the orb
   companyName?: string; // for the dismissed hint ("didn't work at <company>")
-  terminal?: boolean; // traced but no onward: a quiet "still at <company>"
   // The colleague's LinkedIn profile, on lane faces only: a traced face has no
   // click of its own left (trace already happened), so the orb becomes the link.
   profileUrl?: string;
@@ -243,13 +242,6 @@ function PersonNode({ data }: NodeProps<Node<PersonNodeData>>) {
         {traceMessage && (
           <span className="person-node__progress">{traceMessage}</span>
         )}
-        {/* A traced colleague with no onward path: a quiet always-on caption so
-            the lone face reads as intentional, not broken. */}
-        {status === 'traced' && data.terminal && (
-          <span className="person-node__caption">
-            {t('stillAt', data.companyName ?? t('here'))}
-          </span>
-        )}
       </div>
     </div>
   );
@@ -318,6 +310,91 @@ function OnwardNode({ data }: NodeProps<Node<OnwardNodeData>>) {
           </span>
           {data.year && <span className="onward-node__year">{data.year}</span>}
         </div>
+      </div>
+    </div>
+  );
+}
+
+export type OngoingNodeData = {
+  name: string; // the focus company's name, for the tooltip
+  logoDataUrl?: string;
+  color?: string; // the focus company's own colour, matching its beam
+  currentTitle?: string; // the colleague's own current title there
+  currentYear?: string; // the year they were promoted into it (if ever)
+};
+
+/**
+ * A lane's terminal orb (issue #14): the colleague never left the focus
+ * company, so their lane ends in a copy of it sitting on the shared now-line
+ * instead of trailing off into a caption. Their current title (their real
+ * achievement, if they were ever promoted) is always on underneath it, the
+ * same label style an onward leaf uses for its company + year, not hidden
+ * behind a hover. Any earlier titles are their own beads threaded on the
+ * beam leading here (`RoleBeadNode`, below).
+ */
+function OngoingNode({ data }: NodeProps<Node<OngoingNodeData>>) {
+  const style = {
+    '--leaf-color': data.color ?? 'rgb(150, 160, 182)',
+  } as CSSProperties;
+  const hStyle = { top: ONWARD_ORB / 2 } as const;
+  return (
+    <div className="ongoing-node" style={style}>
+      <Handle id="l" type="target" position={Position.Left} isConnectable={false} style={hStyle} />
+      <div className="ongoing-node__pop">
+        <div
+          className="ongoing-orb"
+          style={{ width: ONWARD_ORB, height: ONWARD_ORB }}
+          title={t('stillAt', data.name)}
+          aria-label={t('stillAt', data.name)}
+        >
+          <CompanyLogo dataUrl={data.logoDataUrl} name={data.name} size={ONWARD_ORB} />
+        </div>
+        {data.currentTitle && (
+          <div className="onward-node__label">
+            <span className="onward-node__name" title={data.currentTitle}>
+              {data.currentTitle}
+            </span>
+            {data.currentYear && (
+              <span className="onward-node__year">{data.currentYear}</span>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export type RoleBeadData = {
+  title: string; // a role the colleague was promoted INTO, before their current one
+  year?: string; // the year they were promoted into it
+  color?: string; // the focus company's colour, matching the beam it sits on
+};
+
+/**
+ * A promotion marker (issue #14): a rank pip threaded on a terminal lane's
+ * beam, one per intermediate title the colleague was promoted into on their
+ * way to the current one (their original hire and their current title don't
+ * get one: the face is the hire, the ongoing orb is the current title).
+ * Oldest (smallest) nearest the face, growing toward the orb — a literal
+ * "level up" as the eye moves along the beam. Title + year sit under it,
+ * always on, the same label style an onward leaf uses. Not connected by any
+ * edge of its own: it just sits on the line the face → ongoing-orb beam
+ * already draws.
+ */
+function RoleBeadNode({ data }: NodeProps<Node<RoleBeadData>>) {
+  const style = {
+    '--bead-color': data.color ?? 'rgb(150, 160, 182)',
+  } as CSSProperties;
+  return (
+    <div className="role-bead" style={style}>
+      <div className="role-bead__mark" aria-hidden="true">
+        ↑
+      </div>
+      <div className="onward-node__label">
+        <span className="onward-node__name" title={data.title}>
+          {data.title}
+        </span>
+        {data.year && <span className="onward-node__year">{data.year}</span>}
       </div>
     </div>
   );
@@ -442,6 +519,8 @@ export const nodeTypes = {
   company: CompanyNode,
   person: PersonNode,
   onward: OnwardNode,
+  ongoing: OngoingNode,
+  roleBead: RoleBeadNode,
   galaxyTitle: GalaxyTitleNode,
   spacer: SpacerNode,
   nowLine: NowLineNode,

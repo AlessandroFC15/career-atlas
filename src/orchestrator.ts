@@ -16,6 +16,7 @@ import type {
   CompanyExpansion,
   ExperienceEntry,
   GraphNode,
+  CurrentRole,
   OnwardStint,
   PersonNode,
   PersonRecord,
@@ -607,7 +608,7 @@ export class TraceError extends Error {
  */
 export type TraceResult =
   | { status: 'dismissed' }
-  | { status: 'traced'; onward: OnwardStint[]; tracedAt: number };
+  | { status: 'traced'; onward: OnwardStint[]; currentRoles?: CurrentRole[]; tracedAt: number };
 
 export interface TraceRunHooks {
   onProgress?: (message: string) => void;
@@ -668,7 +669,7 @@ export async function runTracePerson(
       throw new TraceError('PARSE_NOT_READY', t('theirExperienceTimeout'), workerTabId);
     }
 
-    const { matched, onward } = deriveOnward(company, experiences);
+    const { matched, onward, currentRoles } = deriveOnward(company, experiences);
 
     // False positive: their profile doesn't list this company. A dismiss
     // outcome, not an error — let the orb dim in the cluster.
@@ -696,6 +697,7 @@ export async function runTracePerson(
     await saveTrace(company.id, person.id, {
       status: 'traced',
       onward: withLogos,
+      currentRoles,
       tracedAt,
     });
 
@@ -707,7 +709,7 @@ export async function runTracePerson(
       outcome: 'traced',
       onwardCount: bucketCount(withLogos.length),
     });
-    return { status: 'traced', onward: withLogos, tracedAt };
+    return { status: 'traced', onward: withLogos, currentRoles, tracedAt };
   } catch (err) {
     console.error('[career-atlas] trace failed:', err);
     if (err instanceof TraceError) {

@@ -21,14 +21,20 @@ import type {
 import {
   NODE_WIDTH,
   ONWARD_NODE_WIDTH,
+  ONWARD_ORB,
   PERSON_NODE_WIDTH,
   PERSON_ORB,
+  ROLE_BEAD_MAX,
+  ROLE_BEAD_MIN,
+  ROLE_BEAD_STEP,
 } from './dimensions';
 import type {
   CompanyNodeData,
   LoadMoreData,
+  OngoingNodeData,
   OnwardNodeData,
   PersonNodeData,
+  RoleBeadData,
 } from './nodes';
 
 /** A company's full LinkedIn URL from its (possibly relative) stored link, so
@@ -285,11 +291,87 @@ export function buildGalaxy(
         // The face is a link to the colleague's profile (the orb's click is
         // otherwise dead once traced).
         profileUrl: lane.person.profileUrl,
-        // No onward leaves = a terminal colleague (still here / nothing after).
-        terminal: lane.leaves.length === 0,
       } as PersonNodeData,
       draggable: false,
     });
+
+    // No onward leaves = still at the focus company: a visible orb of its
+    // own on the now-line (not just a caption), so the lane still reads as
+    // reaching today like every other one. Earlier roles[] thread as beads on
+    // the beam leading to it, so a promotion in place reads as a path with
+    // stops rather than one flat line.
+    if (lane.leaves.length === 0) {
+      anyPresent = true;
+      const focusColor = colors[focus.id];
+      const ongoingId = `${faceId}::ongoing`;
+
+      // The exact points the beam itself runs between (face's right handle,
+      // ongoing orb's left handle), so beads land ON the line, not near it.
+      const faceHandleX = rowCenterX + lane.faceX + PERSON_NODE_WIDTH / 2;
+      const faceHandleY = base.y + lane.faceY + PERSON_ORB / 2;
+      const ongoingHandleX = nowWorldX - ONWARD_ORB / 2;
+      const ongoingHandleY = base.y + lane.faceY + ONWARD_ORB / 2;
+
+      // `currentRoles` is sorted ascending by start (oldest first). The last
+      // one is their current title (the orb's own always-on label), and the
+      // first is just their original hire (no promotion into it, so no
+      // marker — the face already stands for "joined"). Anything strictly
+      // between those two is an intermediate promotion, one bead each, in
+      // the chronological order they need (oldest nearest the face).
+      const roles = lane.person.currentRoles ?? [];
+      const current = roles.at(-1);
+      const priorRoles = roles.slice(1, -1);
+      priorRoles.forEach((role, i) => {
+        const t = (i + 1) / (priorRoles.length + 1);
+        // Grows step to step (oldest title smallest), so climbing the beam
+        // toward the current title reads as levelling up, not just a list.
+        const size = Math.min(ROLE_BEAD_MIN + i * ROLE_BEAD_STEP, ROLE_BEAD_MAX);
+        laneNodes.push({
+          id: `${faceId}::role::${i}`,
+          type: 'roleBead',
+          position: {
+            x: faceHandleX + (ongoingHandleX - faceHandleX) * t - size / 2,
+            y: faceHandleY + (ongoingHandleY - faceHandleY) * t - size / 2,
+          },
+          width: size,
+          height: size,
+          data: {
+            title: role.title,
+            year: String(role.start.year),
+            color: focusColor,
+          } as RoleBeadData,
+          draggable: false,
+          selectable: true,
+        });
+      });
+
+      laneNodes.push({
+        id: ongoingId,
+        type: 'ongoing',
+        position: {
+          x: nowWorldX - ONWARD_NODE_WIDTH / 2,
+          y: base.y + lane.faceY,
+        },
+        data: {
+          name: focus.name,
+          logoDataUrl: focus.logoDataUrl,
+          color: focusColor,
+          currentTitle: current?.title,
+          currentYear: current && String(current.start.year),
+        } as OngoingNodeData,
+        draggable: false,
+        selectable: true,
+      });
+      laneEdges.push({
+        id: `ongoing-${faceId}`,
+        type: 'next',
+        source: faceId,
+        target: ongoingId,
+        sourceHandle: 'r',
+        targetHandle: 'l',
+        data: { index: 0, color: focusColor, present: true },
+      });
+    }
 
     let prevId = faceId;
     // A segment is coloured by the company they were AT during it (its source),

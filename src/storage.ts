@@ -2,6 +2,7 @@ import { mergePeople } from './graph';
 import type {
   CareerGraph,
   CompanyExpansion,
+  CurrentRole,
   OnwardStint,
   PersonNode,
   Seed,
@@ -135,7 +136,12 @@ export async function appendExpansionPage(
 export async function saveTrace(
   companyId: string,
   personId: string,
-  patch: { status: 'traced' | 'dismissed'; onward?: OnwardStint[]; tracedAt?: number },
+  patch: {
+    status: 'traced' | 'dismissed';
+    onward?: OnwardStint[];
+    currentRoles?: CurrentRole[];
+    tracedAt?: number;
+  },
 ): Promise<CareerGraph | null> {
   return patchExpansion(companyId, (expansion) => ({
     ...expansion,

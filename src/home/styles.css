@@ -844,19 +844,6 @@ a.person-orb {
   font-style: italic;
 }
 
-/* Terminal colleague caption: a quiet always-on line below the lone face. */
-.person-node__caption {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-  white-space: nowrap;
-  font-size: 11.5px;
-  font-style: italic;
-  color: var(--muted);
-  pointer-events: none;
-}
-
 /* Cycling trace caption under an orb mid-trace: a quiet, muted line that gently
    fades at each message swap. The hover name is suppressed while tracing (below)
    so the two never overlap. */
@@ -1011,6 +998,80 @@ a.person-orb {
 }
 @media (prefers-reduced-motion: reduce) {
   .onward-node__title { transition: opacity 130ms ease; }
+}
+
+/* A lane's terminal orb (issue #14): the colleague never left the focus
+   company, so their lane still reaches the now-line, in a copy of the same
+   orb rather than trailing off into a caption. Shares the onward leaf's
+   glow/label machinery. */
+.ongoing-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: default;
+}
+.ongoing-node .react-flow__handle {
+  width: 1px;
+  height: 1px;
+  min-width: 0;
+  min-height: 0;
+  background: transparent;
+  border: none;
+  opacity: 0;
+}
+.ongoing-node__pop {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: person-appear 520ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.ongoing-node:hover { z-index: 10; }
+@media (prefers-reduced-motion: reduce) {
+  .ongoing-node__pop { animation: none; }
+}
+.ongoing-orb {
+  position: relative;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--leaf-color, rgb(140, 158, 235)) 50%, rgba(255, 255, 255, 0.35)),
+    0 4px 12px rgba(0, 0, 0, 0.42),
+    0 0 16px 2px color-mix(in srgb, var(--leaf-color, rgb(140, 158, 235)) 72%, transparent),
+    0 0 42px 8px color-mix(in srgb, var(--leaf-color, rgb(140, 158, 235)) 36%, transparent);
+}
+.ongoing-orb .logo,
+.ongoing-orb .logo--fallback { border-radius: 50%; }
+
+/* A promotion marker (issue #14): a rank pip sitting directly on a terminal
+   lane's beam, one per intermediate title, growing a little larger step to
+   step toward the current title (a literal "level up" read), with its title
+   + year always on beneath it (the same label an onward leaf uses for its
+   company + year), no hover needed. A colleague with at most one promotion
+   gets none of these — the ongoing orb's own label already covers it. */
+.role-bead {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  cursor: default;
+}
+.role-bead:hover { z-index: 10; }
+.role-bead__mark {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--bead-color, rgb(150, 160, 182));
+  color: rgba(5, 7, 15, 0.82);
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.55),
+    0 2px 6px rgba(0, 0, 0, 0.4),
+    0 0 10px 2px color-mix(in srgb, var(--bead-color, rgb(150, 160, 235)) 65%, transparent);
 }
 
 /* The faint dashed convergence thread fades in with the band. */
