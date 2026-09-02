@@ -1,3 +1,4 @@
+import { bucketCount, track } from './analytics';
 import { t } from './i18n';
 import { injectedReadProfileHeader } from './profileReader';
 import { injectedScrapeExperience } from './parser';
@@ -237,6 +238,8 @@ export interface SeedRunHooks {
 export async function runSeed(hooks: SeedRunHooks = {}): Promise<Seed> {
   const progress = hooks.onProgress ?? (() => {});
   let workerTabId: number | undefined;
+  const startedAt = Date.now();
+  void track({ name: 'seed_started' });
 
   try {
     // 1. Open the worker tab on /in/me in the BACKGROUND (active: false) so the
@@ -315,6 +318,11 @@ export async function runSeed(hooks: SeedRunHooks = {}): Promise<Seed> {
     if (workerTabId !== undefined) {
       chrome.tabs.remove(workerTabId).catch(() => {});
     }
+    void track({
+      name: 'seed_succeeded',
+      companyCount: experiences.length,
+      durationMs: Date.now() - startedAt,
+    });
     return seed;
   } catch (err) {
     console.error('[career-atlas] seed failed:', err);
@@ -323,8 +331,10 @@ export async function runSeed(hooks: SeedRunHooks = {}): Promise<Seed> {
       // surfaced otherwise.
       err.workerTabId ??= workerTabId;
       settleWorkerTab(err.workerTabId, err.code === 'LOGGED_OUT');
+      void track({ name: 'seed_failed', code: err.code, durationMs: Date.now() - startedAt });
       throw err;
     }
+    void track({ name: 'seed_failed', code: 'GENERIC', durationMs: Date.now() - startedAt });
     throw new SeedError(
       'GENERIC',
       err instanceof Error ? err.message : t('errorGeneric'),
@@ -457,6 +467,7 @@ export async function runExpandCompany(
 ): Promise<CompanyExpansion> {
   const progress = hooks.onProgress ?? (() => {});
   const keyword = company.name;
+  void track({ name: 'expand_started' });
 
   try {
     progress(t('searchingConnectionsAt', keyword));
@@ -482,9 +493,12 @@ export async function runExpandCompany(
       exhausted: false,
     };
     await saveExpansion(company.id, expansion);
+    void track({ name: 'expand_succeeded', peopleFound: bucketCount(people.length) });
     return expansion;
   } catch (err) {
-    throw asExpandError(err);
+    const expandErr = asExpandError(err);
+    void track({ name: 'expand_failed', code: expandErr.code });
+    throw expandErr;
   }
 }
 
@@ -614,6 +628,7 @@ export async function runTracePerson(
 ): Promise<TraceResult> {
   const progress = hooks.onProgress ?? (() => {});
   let workerTabId: number | undefined;
+  void track({ name: 'trace_started' });
 
   try {
     // One-step: open the colleague's experience page directly in a background
@@ -662,6 +677,7 @@ export async function runTracePerson(
       if (workerTabId !== undefined) {
         chrome.tabs.remove(workerTabId).catch(() => {});
       }
+      void track({ name: 'trace_succeeded', outcome: 'dismissed' });
       return { status: 'dismissed' };
     }
 
@@ -686,16 +702,23 @@ export async function runTracePerson(
     if (workerTabId !== undefined) {
       chrome.tabs.remove(workerTabId).catch(() => {});
     }
+    void track({
+      name: 'trace_succeeded',
+      outcome: 'traced',
+      onwardCount: bucketCount(withLogos.length),
+    });
     return { status: 'traced', onward: withLogos, tracedAt };
   } catch (err) {
     console.error('[career-atlas] trace failed:', err);
     if (err instanceof TraceError) {
       err.workerTabId ??= workerTabId;
       settleWorkerTab(err.workerTabId, err.code === 'LOGGED_OUT');
+      void track({ name: 'trace_failed', code: err.code });
       throw err;
     }
     // A SeedError bubbling from waitForLoad (timeout / tab closed) lands here.
     settleWorkerTab(workerTabId, false);
+    void track({ name: 'trace_failed', code: 'GENERIC' });
     throw new TraceError(
       'GENERIC',
       err instanceof Error ? err.message : t('errorGeneric'),

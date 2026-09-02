@@ -107,6 +107,16 @@ html, body {
   border-bottom: 1px solid var(--border);
   padding: 12px 24px;
   flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  /* A flex item honors z-index without needing `position` — needed so the
+     privacy popover's overflow (it extends below this bar's own box) paints
+     above .career-page, its next flex sibling, instead of getting painted
+     over by it (siblings with the default auto z-index stack in document
+     order, and career-page comes second). */
+  z-index: 3;
 }
 
 .app__brand {
@@ -116,6 +126,87 @@ html, body {
   letter-spacing: 0.02em;
   text-shadow: 0 0 14px var(--glow);
 }
+
+.app-menu { position: relative; }
+.app-menu__trigger {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  opacity: 0.55;
+}
+.app-menu__trigger span {
+  display: block;
+  width: 15px;
+  height: 1.5px;
+  border-radius: 1px;
+  background: var(--text);
+}
+.app-menu__trigger:hover {
+  opacity: 1;
+  background: var(--accent-soft);
+}
+.app-menu__trigger:hover span { background: var(--accent); }
+.app-menu__panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 2;
+  background: var(--card);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(var(--glass-blur));
+  border-radius: 10px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+.app-menu__item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+.app-menu__item:hover { background: var(--accent-soft); color: var(--accent); }
+.app-menu__divider {
+  height: 1px;
+  background: var(--border);
+  margin: 2px 4px;
+}
+.app-menu__option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--text);
+  padding: 6px 8px;
+}
+.app-menu__option input { accent-color: var(--accent); cursor: pointer; }
+.app-menu__link {
+  color: var(--muted);
+  text-decoration: underline;
+  padding: 2px 8px 4px;
+}
+.app-menu__link:hover { color: var(--accent); }
 
 .app__main {
   flex: 1 1 auto;

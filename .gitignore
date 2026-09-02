@@ -3,6 +3,11 @@ dist/
 *.local
 .DS_Store
 
+# Local secrets (the real PostHog key); .env.example stays tracked as the template.
+.env
+.env.*
+!.env.example
+
 # Editor / IDE
 .idea/
 .vscode/

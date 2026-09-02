@@ -1,7 +1,19 @@
 // Minimal background service worker (m0-plan §3, §4). Its only job: on toolbar
 // click, open the home tab — or focus the existing one (single-instance).
 
+import { flushQueue } from './analytics';
+
 const HOME_PATH = 'home.html';
+
+// Analytics events are queued in chrome.storage.local (src/analytics.ts) since
+// an in-memory buffer here would evaporate whenever the service worker is torn
+// down. An alarm is the only reliable way to keep flushing that queue across
+// teardowns: setInterval doesn't survive them.
+const FLUSH_ALARM = 'career-atlas:analytics-flush';
+chrome.alarms.create(FLUSH_ALARM, { periodInMinutes: 1 });
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === FLUSH_ALARM) void flushQueue();
+});
 
 let homeTabId: number | undefined;
 

@@ -22,6 +22,6 @@ export default defineManifest({
     service_worker: 'src/background.ts',
     type: 'module',
   },
-  permissions: ['storage', 'scripting', 'tabs'],
+  permissions: ['storage', 'scripting', 'tabs', 'alarms'],
   host_permissions: ['https://www.linkedin.com/*', 'https://*.licdn.com/*'],
 });

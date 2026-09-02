@@ -34,11 +34,20 @@
     "message": "$1 empresas",
     "placeholders": { "1": { "content": "$1" } }
   },
-  "reseed": {
-    "message": "Revelar de novo"
+  "startOver": {
+    "message": "Começar de novo"
   },
   "logInToLinkedIn": {
     "message": "Entrar no LinkedIn"
+  },
+  "menu": {
+    "message": "Menu"
+  },
+  "shareUsageData": {
+    "message": "Compartilhar dados de uso anônimos"
+  },
+  "privacyPolicy": {
+    "message": "Política de privacidade"
   },
   "couldNotFollow": {
     "message": "Não foi possível seguir essa pessoa. Tente de novo."

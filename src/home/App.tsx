@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { isOptedOut, setOptedOut, track } from '../analytics';
 import { loadGraph, loadSeed, saveGraph } from '../storage';
 import { deriveGraph } from '../graph';
 import {
@@ -132,12 +133,20 @@ export function App() {
     return () => clearTimeout(fallback);
   }, []);
 
+  // Shared by Esc and the back button, so "left the galaxy" is tracked exactly
+  // once regardless of which one the user reaches for.
+  function goToAtlas() {
+    setNav((n) => {
+      if (n.mode !== 'galaxy') return n;
+      void track({ name: 'atlas_returned' });
+      return { mode: 'atlas' };
+    });
+  }
+
   // Esc flies back out of a galaxy to the atlas (m2-plan §9).
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        setNav((n) => (n.mode === 'galaxy' ? { mode: 'atlas' } : n));
-      }
+      if (e.key === 'Escape') goToAtlas();
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -218,6 +227,7 @@ export function App() {
     if (view.kind !== 'seeded') return;
     const company = view.graph.nodes.find((n) => n.id === companyId);
     if (!company) return;
+    void track({ name: 'galaxy_entered' });
 
     if (view.graph.expansions?.[companyId]) {
       setNav({ mode: 'galaxy', companyId, status: 'ready' });
@@ -334,7 +344,7 @@ export function App() {
   }
 
   function handleBack() {
-    setNav({ mode: 'atlas' });
+    goToAtlas();
   }
 
   // Re-seed returns to the initial "Seed my graph" screen rather than launching
@@ -351,12 +361,11 @@ export function App() {
     return (
       <div className="app">
         <Cosmos />
-        <Brand />
+        <Brand onReseed={handleReset} />
         <SeededState
           seed={view.seed}
           graph={view.graph}
           view={nav}
-          onReseed={handleReset}
           onCompanyClick={handleExpand}
           onPersonClick={handleTracePerson}
           onLoadMore={handleLoadMore}
@@ -418,11 +427,92 @@ export function App() {
   );
 }
 
-function Brand() {
+function Brand({ onReseed }: { onReseed?: () => void }) {
   return (
     <header className="app__bar">
       <span className="app__brand">Career Atlas</span>
+      <AppMenu onReseed={onReseed} />
     </header>
+  );
+}
+
+/** The title bar's one overflow menu: re-seed (only once there's a graph to
+ *  re-seed) plus the privacy opt-out (issue #11), on by default. Both are
+ *  settings/rare actions, so they share a menu tucked behind a hamburger
+ *  rather than sitting exposed next to the brand. The opt-out toggle reads
+ *  its state from storage once rather than lifting it into App's own state —
+ *  no other part of the tree needs to react to it. */
+function AppMenu({ onReseed }: { onReseed?: () => void }) {
+  const [optedOut, setOptedOutState] = useState<boolean | null>(null);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    isOptedOut().then(setOptedOutState);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e: PointerEvent) {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    }
+    window.addEventListener('pointerdown', onPointerDown);
+    return () => window.removeEventListener('pointerdown', onPointerDown);
+  }, [open]);
+
+  if (optedOut === null) return null;
+
+  return (
+    <div className="app-menu" ref={ref}>
+      <button
+        className="app-menu__trigger"
+        aria-label={t('menu')}
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span />
+        <span />
+        <span />
+      </button>
+      {open && (
+        <div className="app-menu__panel">
+          {onReseed && (
+            <>
+              <button
+                className="app-menu__item"
+                onClick={() => {
+                  setOpen(false);
+                  onReseed();
+                }}
+              >
+                {t('startOver')}
+              </button>
+              <div className="app-menu__divider" />
+            </>
+          )}
+          <label className="app-menu__option">
+            <input
+              type="checkbox"
+              checked={!optedOut}
+              onChange={(e) => {
+                const next = !e.target.checked;
+                setOptedOutState(next);
+                void setOptedOut(next);
+              }}
+            />
+            {t('shareUsageData')}
+          </label>
+          <a
+            className="app-menu__link"
+            href="https://github.com/AlessandroFC15/career-atlas/blob/main/docs/privacy-policy.md"
+            target="_blank"
+            rel="noreferrer"
+          >
+            {t('privacyPolicy')}
+          </a>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -472,12 +562,12 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
   );
 }
 
-/** Header bar (avatar + name + company count + Re-seed) above the graph (§8). */
+/** Header bar (avatar + name + company count) above the graph (§8). Re-seed
+ *  lives in the title bar's overflow menu now (issue #11), not here. */
 function SeededState({
   seed,
   graph,
   view,
-  onReseed,
   onCompanyClick,
   onPersonClick,
   onLoadMore,
@@ -492,7 +582,6 @@ function SeededState({
   seed: Seed;
   graph: CareerGraphModel;
   view: GraphView;
-  onReseed: () => void;
   onCompanyClick: (companyId: string) => void;
   onPersonClick: (personId: string) => void;
   onLoadMore: (companyId: string) => void;
@@ -515,9 +604,6 @@ function SeededState({
             {t(count === 1 ? 'companyCountOne' : 'companyCountOther', count)}
           </p>
         </div>
-        <button className="btn btn--ghost" onClick={onReseed}>
-          {t('reseed')}
-        </button>
       </section>
       {/* Key by the seed timestamp so a re-seed remounts the graph and the
           one-shot CSS ignition replays (CSS animations don't re-fire on a

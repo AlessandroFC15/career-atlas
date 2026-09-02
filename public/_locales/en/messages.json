@@ -34,11 +34,20 @@
     "message": "$1 companies",
     "placeholders": { "1": { "content": "$1" } }
   },
-  "reseed": {
-    "message": "Re-seed"
+  "startOver": {
+    "message": "Start over"
   },
   "logInToLinkedIn": {
     "message": "Log in to LinkedIn"
+  },
+  "menu": {
+    "message": "Menu"
+  },
+  "shareUsageData": {
+    "message": "Share anonymous usage data"
+  },
+  "privacyPolicy": {
+    "message": "Privacy policy"
   },
   "couldNotFollow": {
     "message": "Could not follow them. Try again."
