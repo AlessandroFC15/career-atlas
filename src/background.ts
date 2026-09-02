@@ -55,6 +55,10 @@ chrome.action.onClicked.addListener(() => {
   void openOrFocusHome();
 });
 
+chrome.runtime.onInstalled.addListener(({ reason }) => {
+  if (reason === 'install') void openOrFocusHome();
+});
+
 chrome.tabs.onRemoved.addListener((tabId) => {
   if (tabId === homeTabId) homeTabId = undefined;
 });

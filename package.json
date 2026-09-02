@@ -1,7 +1,7 @@
 {
   "name": "career-atlas",
   "version": "0.1.0",
-  "description": "Career Trajectory Explorer — Chrome extension (M0: seed and show)",
+  "description": "Map who you overlapped with and where they went next, rooted in your own career.",
   "type": "module",
   "scripts": {
     "dev": "vite",
