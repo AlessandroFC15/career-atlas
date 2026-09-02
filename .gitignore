@@ -2,6 +2,7 @@ node_modules
 dist/
 *.local
 .DS_Store
+career-atlas.zip
 
 # Local secrets (the real PostHog key); .env.example stays tracked as the template.
 .env
