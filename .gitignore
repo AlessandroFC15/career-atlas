@@ -12,7 +12,3 @@ career-atlas-*.zip
 # Editor / IDE
 .idea/
 .vscode/
-
-# Local project skills (Claude Code) — release is checked in (see below)
-.claude/skills/*
-!.claude/skills/release/
