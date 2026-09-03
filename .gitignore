@@ -2,7 +2,7 @@ node_modules
 dist/
 *.local
 .DS_Store
-career-atlas.zip
+career-atlas-*.zip
 
 # Local secrets (the real PostHog key); .env.example stays tracked as the template.
 .env
@@ -13,5 +13,6 @@ career-atlas.zip
 .idea/
 .vscode/
 
-# Local project skills (Claude Code)
-.claude/skills/
+# Local project skills (Claude Code) — release is checked in (see below)
+.claude/skills/*
+!.claude/skills/release/
