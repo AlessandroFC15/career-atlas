@@ -60,24 +60,38 @@ make that mistake structurally hard to repeat.
    git push origin vX.Y.Z
    ```
 
-   The tag is the durable pointer to exactly what shipped — since the zip
-   itself isn't committed (see below), `git checkout vX.Y.Z && npm run zip`
-   is how to reproduce a past release's artifact byte-for-byte later.
+7. **Publish a GitHub Release with the zip attached.** This is the
+   canonical home for the built artifact (the zip itself is gitignored, not
+   committed — see below):
 
-7. **Stop here.** Uploading to the Chrome Web Store Developer Dashboard is a
-   manual, external action this skill does not and cannot perform. Tell the
-   user the zip is ready at `career-atlas-X.Y.Z.zip` and that they need to
-   upload it themselves.
+   ```
+   gh release create vX.Y.Z career-atlas-X.Y.Z.zip \
+     --title "vX.Y.Z" \
+     --notes "<short summary of what changed since the last release>"
+   ```
 
-## Why the zip isn't committed to the repo
+   Write the `--notes` summary from `git log <previous-tag>..vX.Y.Z
+   --oneline` (or ask the user, if the changes aren't self-evident from
+   commit subjects). This is a visible, external action — creating a public
+   GitHub Release — so confirm the version and notes with the user before
+   running it unless they've already approved this exact release in the
+   conversation.
 
-`career-atlas-*.zip` is gitignored. It's a regenerable binary build
-artifact, not source — committing one on every release would bloat the
-repo's history with a binary diff each time for something fully
-reproducible from a tagged commit. The `vX.Y.Z` tag from step 6 is the
-answer to "where do I find release N" instead. If a specific released zip
-needs to be kept somewhere permanent (e.g. for audit purposes), attach it to
-a GitHub Release on that tag — don't add it to the repo tree.
+8. **Stop here.** Uploading to the Chrome Web Store Developer Dashboard is a
+   separate, manual, external action this skill does not and cannot
+   perform. Tell the user the GitHub Release is up with the zip attached,
+   and that they still need to upload that zip to the Web Store themselves.
+
+## Why the zip isn't committed to the repo, but does live on GitHub
+
+`career-atlas-*.zip` stays gitignored and out of the repo tree — it's a
+regenerable binary build artifact, not source, and committing one on every
+release would bloat the repo's history with a binary diff each time for
+something fully reproducible from a tagged commit. The GitHub Release from
+step 7 is where the actual artifact lives permanently instead: durable,
+versioned, downloadable, and outside git's own history. The `vX.Y.Z` tag
+underneath it (step 6) is also enough on its own to reproduce the exact
+artifact later via `git checkout vX.Y.Z && npm run zip`, if needed.
 
 ## Why a shell override instead of editing `.env`
 
