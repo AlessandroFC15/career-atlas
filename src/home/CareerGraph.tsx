@@ -13,7 +13,13 @@ import { nodeTypes } from './flow/nodes';
 import { edgeTypes } from './flow/edges';
 import { useLogoColors, useSampledColors } from './flow/colors';
 import { buildAtlas, buildGalaxy } from './flow/build';
+import type { PersonNodeData } from './flow/nodes';
 import { t } from '../i18n';
+
+/** How many of the most recently traced swimlanes the galaxy auto-focus keeps
+ *  in frame alongside the cluster (issue #20): the 1st trace is on its own,
+ *  the 3rd pushes the 1st out of frame, and so on. */
+const MAX_FOCUS_LANES = 2;
 
 /** The view the graph renders: the atlas chain, or one company's galaxy. */
 export type GraphView =
@@ -154,35 +160,97 @@ function Flow({
   ]);
 
   const inGalaxy = phase.k === 'galaxy';
-  const peopleCount =
-    phase.k === 'galaxy'
-      ? graph.expansions?.[phase.id]?.people?.length ?? 0
-      : 0;
-  // Lanes grow the band; reframe when a colleague is traced (the people array is
-  // patched in place, so the total count alone wouldn't change).
-  const laneCount =
+  // Reframe when a colleague is traced (the people array is patched in place,
+  // so a raw count of all people wouldn't change).
+  const tracedCount =
     phase.k === 'galaxy'
       ? graph.expansions?.[phase.id]?.people?.filter((p) => p.status === 'traced')
           .length ?? 0
       : 0;
 
-  // One continuous fitView per phase change (no teleport, since the focused orb
-  // keeps its atlas coordinates). The galaxy's bounds are constant from the
-  // moment we enter it (the reserve spacer is always present, see build.ts), so
-  // this flies straight to the final framing in a single move; people then fade
-  // in without the camera shifting again. Entering still renders the (fading)
-  // atlas, so fitView there just holds the chain framing until the swap.
+  // The focus orb, its title, the "load more" orb, and the untraced cluster —
+  // never the swimlane band. This is the expand-a-company framing: paging in
+  // more candidates only ever grows the cluster, so that's all the camera
+  // should hold onto (issue #20). Before anyone has been traced, the reserve
+  // spacer (build.ts) is included too: while the galaxy is still loading, it's
+  // the only thing standing in for the cluster's eventual footprint, so leaving
+  // it out zooms the still-empty scene in tight on the orb alone, then jumps
+  // once people actually arrive. Once a lane exists the spacer sits below the
+  // whole band instead (build.ts's `reserveY`), so it's excluded from then on —
+  // otherwise the "expand" framing would grow with every trace too.
+  const clusterFocusNodes = useMemo(() => {
+    if (phase.k !== 'galaxy') return undefined;
+    const hasTraced = (graph.expansions?.[phase.id]?.people ?? []).some(
+      (p) => p.status === 'traced',
+    );
+    return scene.nodes
+      .filter(
+        (n) =>
+          n.type === 'company' ||
+          n.type === 'galaxyTitle' ||
+          n.type === 'loadMore' ||
+          (n.type === 'spacer' && !hasTraced) ||
+          (n.type === 'person' &&
+            (n.data as PersonNodeData).status !== 'traced'),
+      )
+      .map((n) => ({ id: n.id }));
+  }, [phase, graph, scene]);
+
+  // Same region, plus up to MAX_FOCUS_LANES of the most recently traced
+  // swimlanes (they sort to the top of the band, right under the cluster —
+  // see build.ts). This is the trace-a-person framing: older lanes fall out of
+  // the fit on purpose, so the region stays roughly the same size trace after
+  // trace instead of zooming out further with every one (issue #20).
+  const traceFocusNodes = useMemo(() => {
+    if (phase.k !== 'galaxy' || !clusterFocusNodes) return undefined;
+    const people = graph.expansions?.[phase.id]?.people ?? [];
+    const recentIds = new Set(
+      people
+        .filter((p) => p.status === 'traced')
+        .sort((a, b) => (b.tracedAt ?? 0) - (a.tracedAt ?? 0))
+        .slice(0, MAX_FOCUS_LANES)
+        .map((p) => p.id),
+    );
+    const laneNodes = scene.nodes
+      .filter((n) =>
+        [...recentIds].some((id) => n.id === id || n.id.startsWith(`${id}::`)),
+      )
+      .map((n) => ({ id: n.id }));
+    return [...clusterFocusNodes, ...laneNodes];
+  }, [phase, graph, scene, clusterFocusNodes]);
+
+  // Two distinct camera intents, not one shared re-fit (issue #20): entering a
+  // galaxy holds on the cluster, tracing a colleague holds on the cluster plus
+  // its own capped lane window. Expanding (paging in more candidates) gets NO
+  // auto-focus at all — the camera stays exactly where the user left it while
+  // the cluster grows or wraps underneath it (an experiment; peopleCount is
+  // deliberately not in this effect's deps). `prevGalaxyId` resets the traced
+  // baseline on entry, so switching companies doesn't mistake a lower
+  // tracedCount for a lost trace and roll out the wrong framing.
+  const prevGalaxyId = useRef(phase.k === 'galaxy' ? phase.id : undefined);
+  const prevTracedCount = useRef(tracedCount);
   useEffect(() => {
+    const enteringGalaxy =
+      phase.k === 'galaxy' && phase.id !== prevGalaxyId.current;
+    const tracedChanged = !enteringGalaxy && tracedCount !== prevTracedCount.current;
+    prevGalaxyId.current = phase.k === 'galaxy' ? phase.id : undefined;
+    prevTracedCount.current = tracedCount;
+
     const raf = requestAnimationFrame(() => {
       if (phase.k === 'galaxy') {
-        rf.fitView({ duration: 700, padding: 0.22, maxZoom: 1.4 });
+        rf.fitView({
+          duration: 700,
+          padding: 0.22,
+          maxZoom: 1.4,
+          nodes: tracedChanged ? traceFocusNodes : clusterFocusNodes,
+        });
       } else {
         rf.fitView({ duration: 700, padding: 0.2 });
       }
     });
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, peopleCount, laneCount, rf]);
+  }, [phase, tracedCount, rf]);
 
   return (
     <div

@@ -63,4 +63,4 @@ So: you expand a company, you trace a colleague. A person is `raw` (candidate),
 - Pure, side-effect-free logic (e.g. `deriveGraph`, `layout` in `src/graph.ts`) stays free of DOM/storage/React and is unit-tested (Vitest + jsdom). React Flow rendering is eyeballed, not unit-tested.
 - Writing style: no em dashes.
 - Git: commit directly to `main` (no feature branch) unless told otherwise.
-- After finishing a change that should be live-verified (anything visual or runtime, not just unit-tested logic), always run `npm run build` so the user can load the extension and test it.
+- After finishing a change that should be live-verified (anything visual or runtime, not just unit-tested logic), always run `npm run build` so the user can load the extension and test it. This is a Chrome extension, not a normal page: don't try to verify it yourself with browser automation (loading an unpacked extension isn't something that flow can do); the user loads it in `chrome://extensions` and checks it themselves.
