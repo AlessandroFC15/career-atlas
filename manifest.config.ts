@@ -12,7 +12,7 @@ export default defineManifest({
   manifest_version: 3,
   default_locale: 'en',
   name: lane ? `Career Atlas [${lane}]` : 'Career Atlas',
-  version: '0.1.1',
+  version: '0.1.2',
   description: 'Map who you overlapped with and where they went next, rooted in your own career.',
   icons: {
     16: 'public/icons/icon16.png',
